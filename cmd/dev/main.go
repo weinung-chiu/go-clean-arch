@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"go-clean-arch/internal/application"
 	"go-clean-arch/internal/common"
 	"go-clean-arch/internal/router"
 	"log/slog"
 	"net/http"
 	"os"
+
+	"github.com/gin-gonic/gin"
 )
 
 var traceIDKey = "traceIDKey"
@@ -34,7 +35,7 @@ func main() {
 	ginRouter := gin.New()
 
 	// Register all handlers
-	router.SetupDevHandlers(ginRouter, app)
+	router.SetupDevHandlers(ginRouter, app, rootLogger)
 
 	// Build HTTP server
 	port := 80
