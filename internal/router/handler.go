@@ -7,6 +7,7 @@ import (
 	application "go-clean-arch/internal/application"
 	"go-clean-arch/internal/common"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -31,6 +32,7 @@ func SetupExampleHandlers(
 		c.JSON(200, gin.H{"message": "pong"})
 	})
 	examples.GET("/hello", exampleAHandler(app))
+	examples.GET("/random", randomExampleHandler(app))
 }
 
 func exampleAHandler(app *application.ExampleApplication) gin.HandlerFunc {
@@ -40,6 +42,36 @@ func exampleAHandler(app *application.ExampleApplication) gin.HandlerFunc {
 		_ = app.DoSomethingFatal(ctx)
 		c.JSON(200, gin.H{
 			"message": "hello world",
+		})
+	}
+}
+
+type RandomExample struct {
+	MockRNG   int
+	PseudoRNG int
+	CryptoRNG int
+}
+
+func randomExampleHandler(app *application.ExampleApplication) gin.HandlerFunc {
+	type response struct {
+		Message string `json:"message"`
+		Results struct {
+			MockRNG   int `json:"mock"`
+			PseudoRNG int `json:"pseudo"`
+			CryptoRNG int `json:"crypto"`
+		} `json:"result"`
+	}
+
+	return func(c *gin.Context) {
+		result, _ := app.DemoRandom(c.Request.Context())
+
+		c.JSON(http.StatusOK, response{
+			Message: "hello world",
+			Results: struct {
+				MockRNG   int `json:"mock"`
+				PseudoRNG int `json:"pseudo"`
+				CryptoRNG int `json:"crypto"`
+			}{MockRNG: result.MockRNG, PseudoRNG: result.PseudoRNG, CryptoRNG: result.CryptoRNG},
 		})
 	}
 }

@@ -1,6 +1,7 @@
 EXAMPLE_PORT ?= 8080
 EXAMPLE_HOST ?= localhost
-EXAMPLE_URL  ?= http://$(EXAMPLE_HOST):$(EXAMPLE_PORT)/api/v1/examples/hello
+EXAMPLE_URL_HELLO  ?= http://$(EXAMPLE_HOST):$(EXAMPLE_PORT)/api/v1/examples/hello
+EXAMPLE_URL_RANDOM  ?= http://$(EXAMPLE_HOST):$(EXAMPLE_PORT)/api/v1/examples/random
 
 .PHONY: run-example kill-example-server build-example pretty-log
 
@@ -17,7 +18,8 @@ run-example:
 	echo "👉Server PID: $$SERVER_PID"; \
 	sleep 2; \
 	echo "👉Curling endpoint..."; \
-	curl -i $(EXAMPLE_URL); \
+	curl -i $(EXAMPLE_URL_HELLO); \
+	curl -i $(EXAMPLE_URL_RANDOM); \
 	kill $$SERVER_PID; \
 	echo "👉Server stopped."
 
