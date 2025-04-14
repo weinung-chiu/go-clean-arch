@@ -3,12 +3,13 @@ package router
 import "C"
 import (
 	"context"
-	"github.com/gin-contrib/requestid"
-	application "go-clean-arch/internal/application"
+	"go-clean-arch/internal/application"
 	"go-clean-arch/internal/common"
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/gin-contrib/requestid"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"

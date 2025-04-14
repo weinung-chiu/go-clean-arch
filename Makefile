@@ -20,6 +20,7 @@ run-example:
 	echo "👉Curling endpoint..."; \
 	curl -i $(EXAMPLE_URL_HELLO); \
 	curl -i $(EXAMPLE_URL_RANDOM); \
+	echo ""; \
 	kill $$SERVER_PID; \
 	echo "👉Server stopped."
 

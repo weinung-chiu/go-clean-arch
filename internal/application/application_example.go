@@ -2,9 +2,11 @@ package application
 
 import (
 	"context"
-	"go-clean-arch/internal/common/random"
+	"fmt"
 	"log/slog"
 	"math/rand"
+
+	"go-clean-arch/internal/common/random"
 )
 
 // ExampleApplication 用來開發
@@ -60,13 +62,7 @@ func (app *ExampleApplication) DemoRandom(ctx context.Context) (RandomExample, e
 	cryptoPicked := random.WeightedInt(cryptoRNG, weights)
 	app.logger.DebugContext(
 		ctx,
-		"random picked:",
-		"mock",
-		mockPicked,
-		"pseudo",
-		pseudoPicked,
-		"crypto",
-		cryptoPicked,
+		fmt.Sprintf("random picked: mock: %d, pseduo: %d, crypto: %d", mockPicked, pseudoPicked, cryptoPicked),
 	)
 
 	return RandomExample{
