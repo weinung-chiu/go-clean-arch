@@ -1,20 +1,21 @@
 package router
 
+import "C"
 import (
 	"context"
+	"github.com/gin-contrib/requestid"
 	application "go-clean-arch/internal/application"
 	"go-clean-arch/internal/common"
 	"log/slog"
 	"time"
 
-	"github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-func SetupDevHandlers(
+func SetupExampleHandlers(
 	router *gin.Engine,
-	app *application.DevelopApplication,
+	app *application.ExampleApplication,
 	logger *slog.Logger,
 ) {
 	router.Use(gin.Recovery())
@@ -24,14 +25,28 @@ func SetupDevHandlers(
 
 	r := router.Group("/api")
 	v1 := r.Group("/v1")
+	examples := v1.Group("/examples")
 
 	v1.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "pong"})
 	})
+	examples.GET("/hello", exampleAHandler(app))
+}
+
+func exampleAHandler(app *application.ExampleApplication) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx := c.Request.Context()
+		_ = app.DoSomething(ctx)
+		_ = app.DoSomethingFatal(ctx)
+		c.JSON(200, gin.H{
+			"message": "hello world",
+		})
+	}
 }
 
 // TraceIDMiddleware 從 request 中取得已有的 trace ID ，如果不存在就建立新的。取得之後會放入 Context 內供後續使用
 func TraceIDMiddleware(field string) gin.HandlerFunc {
+	// TODO: 用 "github.com/gin-contrib/requestid" 處理，加入 response Header
 	return func(c *gin.Context) {
 		traceID := c.GetHeader(field)
 		if traceID == "" {
@@ -55,6 +70,7 @@ func AccessLogMiddleware(logger *slog.Logger) gin.HandlerFunc {
 			slog.Time("timestamp", start),
 			slog.String("trace_id", common.GetTraceID(c.Request.Context())),
 		)
+		slog.Debug("Trace-ID", "id", common.GetTraceID(c.Request.Context()))
 		groupLogger := logger.WithGroup("log")
 		groupLogger = groupLogger.With(
 			slog.String("method", c.Request.Method),

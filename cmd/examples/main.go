@@ -17,29 +17,26 @@ import (
 var traceIDKey = "traceIDKey"
 
 func main() {
-	rootLogger := slog.New(common.NewTraceHandler(slog.NewJSONHandler(os.Stdout, nil)))
+	rootLogger := slog.New(common.NewTraceHandler(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
 	//rootLogger := slog.New(common.NewTraceHandler(slog.NewTextHandler(os.Stdout, nil)))
 	rootLogger.Info("initial app with log/slog", "my_key", "my_value")
 
 	rootCtx := context.Background()
 
 	// logger 在 constructor 顯式帶入
-	params := application.NewDevAppParams{Logger: rootLogger}
-	app := application.NewDevelopApplication(params)
-
-	_ = app.DoSomething(rootCtx)
-	_ = app.DoSomethingFatal(rootCtx)
+	params := application.NewExampleAppParams{Logger: rootLogger}
+	app := application.NewExampleApplication(params)
 
 	// Create gin router
 	gin.SetMode(gin.ReleaseMode)
 	ginRouter := gin.New()
 
 	// Register all handlers
-	router.SetupDevHandlers(ginRouter, app, rootLogger)
+	router.SetupExampleHandlers(ginRouter, app, rootLogger)
 
 	// Build HTTP server
-	port := 80
-	httpAddr := fmt.Sprintf("0.0.0.0:%d", port)
+	port := os.Getenv("PORT")
+	httpAddr := fmt.Sprintf("0.0.0.0:%s", port)
 	server := &http.Server{
 		Addr:    httpAddr,
 		Handler: ginRouter,

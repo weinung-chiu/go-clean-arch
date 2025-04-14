@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"github.com/google/uuid"
 	"go-clean-arch/internal/common"
 	"log/slog"
 	"os"
+
+	"github.com/google/uuid"
 )
 
 var traceIDKey = "traceIDKey"
