@@ -34,6 +34,7 @@ func SetupExampleHandlers(
 	})
 	examples.GET("/hello", exampleAHandler(app))
 	examples.GET("/random", randomExampleHandler(app))
+	examples.GET("/clock", clockExampleHandler(app))
 }
 
 func exampleAHandler(app *application.ExampleApplication) gin.HandlerFunc {
@@ -73,6 +74,34 @@ func randomExampleHandler(app *application.ExampleApplication) gin.HandlerFunc {
 				PseudoRNG int `json:"pseudo"`
 				CryptoRNG int `json:"crypto"`
 			}{MockRNG: result.MockRNG, PseudoRNG: result.PseudoRNG, CryptoRNG: result.CryptoRNG},
+		})
+	}
+}
+
+func clockExampleHandler(app *application.ExampleApplication) gin.HandlerFunc {
+	type response struct {
+		Message string `json:"message"`
+		Results struct {
+			Before string `json:"before"`
+			After  string `json:"after"`
+			Delta  string `json:"delta"`
+		} `json:"result"`
+	}
+
+	return func(c *gin.Context) {
+		result, _ := app.DemoClock(c.Request.Context())
+
+		c.JSON(http.StatusOK, response{
+			Message: "example of mock clock, 此例模擬一個假的時間起點(before)及假的處理時間(delta)，結束於 after",
+			Results: struct {
+				Before string `json:"before"`
+				After  string `json:"after"`
+				Delta  string `json:"delta"`
+			}{
+				Before: result.Before.Format(time.RFC3339Nano),
+				After:  result.After.Format(time.RFC3339Nano),
+				Delta:  result.Delta.String(),
+			},
 		})
 	}
 }

@@ -2,6 +2,7 @@ EXAMPLE_PORT ?= 8080
 EXAMPLE_HOST ?= localhost
 EXAMPLE_URL_HELLO  ?= http://$(EXAMPLE_HOST):$(EXAMPLE_PORT)/api/v1/examples/hello
 EXAMPLE_URL_RANDOM  ?= http://$(EXAMPLE_HOST):$(EXAMPLE_PORT)/api/v1/examples/random
+EXAMPLE_URL_CLOCK  ?= http://$(EXAMPLE_HOST):$(EXAMPLE_PORT)/api/v1/examples/clock
 
 .PHONY: run-example kill-example-server build-example pretty-log
 
@@ -18,9 +19,10 @@ run-example:
 	echo "👉Server PID: $$SERVER_PID"; \
 	sleep 2; \
 	echo "👉Curling endpoint..."; \
-	curl -i $(EXAMPLE_URL_HELLO); \
-	curl -i $(EXAMPLE_URL_RANDOM); \
-	echo ""; \
+	# echo for newline, should have better way to do it
+	curl -i $(EXAMPLE_URL_HELLO); echo "";\
+	curl -i $(EXAMPLE_URL_RANDOM); echo "";\
+	curl -i $(EXAMPLE_URL_CLOCK); echo "";\
 	kill $$SERVER_PID; \
 	echo "👉Server stopped."
 
