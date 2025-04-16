@@ -1,6 +1,6 @@
 EXAMPLE_PORT ?= 8080
 EXAMPLE_HOST ?= localhost
-EXAMPLE_URL_HELLO  ?= http://$(EXAMPLE_HOST):$(EXAMPLE_PORT)/api/v1/examples/hello
+EXAMPLE_URL_LOGGING  ?= http://$(EXAMPLE_HOST):$(EXAMPLE_PORT)/api/v1/examples/logging
 EXAMPLE_URL_RANDOM  ?= http://$(EXAMPLE_HOST):$(EXAMPLE_PORT)/api/v1/examples/random
 EXAMPLE_URL_CLOCK  ?= http://$(EXAMPLE_HOST):$(EXAMPLE_PORT)/api/v1/examples/clock
 
@@ -20,7 +20,7 @@ run-example:
 	sleep 2; \
 	echo "👉Curling endpoint..."; \
 	# echo for newline, should have better way to do it
-	curl -i $(EXAMPLE_URL_HELLO); echo "";\
+	curl -i $(EXAMPLE_URL_LOGGING); echo "";\
 	curl -i $(EXAMPLE_URL_RANDOM); echo "";\
 	curl -i $(EXAMPLE_URL_CLOCK); echo "";\
 	kill $$SERVER_PID; \

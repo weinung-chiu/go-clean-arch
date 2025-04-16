@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"go-clean-arch/internal/common/clock"
 	"log/slog"
@@ -27,14 +28,19 @@ func NewExampleApplication(params NewExampleAppParams) *ExampleApplication {
 	}
 }
 
-func (app *ExampleApplication) DoSomething(ctx context.Context) error {
-	app.logger.InfoContext(ctx, "did something")
+// DemoLog 示範 Logger 如何運作
+// Logger 會在 NewExampleApplication傳入 application 並加入 component
+// slog.Context: (ctx context.Context, msg string, args ...any)
+// arg 預期的內容為 key1, value1, key2, value2
+func (app *ExampleApplication) DemoLog(ctx context.Context) error {
+	app.logger.DebugContext(ctx, fmt.Sprintf("debuging...foo: %d, bar: %v", 42, time.ANSIC))
+	app.logger.InfoContext(ctx, "info log", "key1", "value1")
 
-	return nil
-}
-
-func (app *ExampleApplication) DoSomethingFatal(ctx context.Context) error {
-	app.logger.WarnContext(ctx, "did something fatal", "foo", "bar")
+	somethingBadHappened := true
+	if somethingBadHappened {
+		app.logger.ErrorContext(ctx, "can't process", "key2", "value2")
+		return errors.New("something bad happened")
+	}
 
 	return nil
 }

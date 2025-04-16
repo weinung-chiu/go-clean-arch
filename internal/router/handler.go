@@ -32,26 +32,29 @@ func SetupExampleHandlers(
 	v1.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "pong"})
 	})
-	examples.GET("/hello", exampleAHandler(app))
+	examples.GET("/logging", loggingExampleHandler(app))
 	examples.GET("/random", randomExampleHandler(app))
 	examples.GET("/clock", clockExampleHandler(app))
-}
-
-func exampleAHandler(app *application.ExampleApplication) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		ctx := c.Request.Context()
-		_ = app.DoSomething(ctx)
-		_ = app.DoSomethingFatal(ctx)
-		c.JSON(200, gin.H{
-			"message": "hello world",
-		})
-	}
 }
 
 type RandomExample struct {
 	MockRNG   int
 	PseudoRNG int
 	CryptoRNG int
+}
+
+func loggingExampleHandler(app *application.ExampleApplication) gin.HandlerFunc {
+	type response struct {
+		Message string `json:"message"`
+	}
+
+	return func(c *gin.Context) {
+		ctx := c.Request.Context()
+		err := app.DemoLog(ctx)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, response{Message: err.Error()})
+		}
+	}
 }
 
 func randomExampleHandler(app *application.ExampleApplication) gin.HandlerFunc {
