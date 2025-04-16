@@ -34,7 +34,7 @@ func NewExampleApplication(params NewExampleAppParams) *ExampleApplication {
 // arg 預期的內容為 key1, value1, key2, value2
 func (app *ExampleApplication) DemoLog(ctx context.Context) error {
 	app.logger.DebugContext(ctx, fmt.Sprintf("debuging...foo: %d, bar: %v", 42, time.ANSIC))
-	app.logger.InfoContext(ctx, "info log", "key1", "value1")
+	app.logger.InfoContext(ctx, "info log", "key1", "value1", "component", "duplicated key will override")
 
 	somethingBadHappened := true
 	if somethingBadHappened {

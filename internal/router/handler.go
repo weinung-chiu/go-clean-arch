@@ -23,7 +23,6 @@ func SetupExampleHandlers(
 	router.Use(gin.Recovery())
 	router.Use(requestid.New())
 	router.Use(TraceIDMiddleware("X-Trace-ID"))
-	router.Use(AccessLogMiddleware(logger.With("service", "DUMMY_SERVICE_NAME")))
 
 	r := router.Group("/api")
 	v1 := r.Group("/v1")
@@ -127,7 +126,7 @@ func TraceIDMiddleware(field string) gin.HandlerFunc {
 
 // AccessLogMiddleware 實作 Access Log
 // 見 https://vgjira.atlassian.net/wiki/spaces/GTAT/pages/190809401/DataDog+GT+Log
-// TODO: 尚未完全符合格式、trace-ID, time 有 duplicate
+// TODO: 尚未完全符合格式、需要跟 SRE 確認預期後調整
 func AccessLogMiddleware(logger *slog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
