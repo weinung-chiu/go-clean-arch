@@ -14,12 +14,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var traceIDKey = "traceIDKey"
+var (
+	AppName    = "go-clean-arch-framework"
+	AppVersion = "unknown_version"
+	AppBuild   = "unknown_build"
+	Env        = "env_placeholder"
+)
 
 func main() {
 	rootLogger := slog.New(common.NewTraceHandler(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
 	//rootLogger := slog.New(common.NewTraceHandler(slog.NewTextHandler(os.Stdout, nil)))
-	rootLogger.Info("initial app with log/slog", "my_key", "my_value")
+	rootLogger = rootLogger.With("service", AppName, "build", AppBuild, "env", Env)
 
 	rootCtx := context.Background()
 

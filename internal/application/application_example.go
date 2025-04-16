@@ -24,7 +24,7 @@ type NewExampleAppParams struct {
 func NewExampleApplication(params NewExampleAppParams) *ExampleApplication {
 	return &ExampleApplication{
 		// 初始化時加上 component ，寫入 record 時即可表達是由誰寫入的
-		logger: params.Logger.With("component", "ExampleApplication"),
+		logger: params.Logger.With("component", "example_application"),
 	}
 }
 
