@@ -2,10 +2,15 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"go-clean-arch/internal/adapter"
 	"go-clean-arch/internal/config"
+	"go-clean-arch/internal/delivery/api"
 	"go-clean-arch/internal/platform/logger"
 	"go-clean-arch/internal/usecase"
 	"log/slog"
@@ -41,7 +46,6 @@ func main() {
 	rootLogger := slog.New(logger.NewSimpleHandler(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel})))
 	rootLogger = rootLogger.With("service", AppName, "build", AppBuild)
 
-	// --- DEMO: in-memory repositories ---
 	memSessionRepo := adapter.NewMemorySessionRepo()
 	memQuestionRepo := adapter.NewMemoryQuestionRepo()
 
@@ -55,37 +59,30 @@ func main() {
 		os.Exit(0)
 	}
 
-	ctx := context.Background()
+	rootCtx := context.Background()
 
-	// 1. Create a new session
-	session, err := app.NewSession(ctx, "My Awesome Conference Talk")
-	if err != nil {
-		rootLogger.Error("Failed to create session", "error", err)
-		return
-	}
-	rootLogger.Debug("Created session", "session", session)
+	gin.SetMode(gin.ReleaseMode)
+	ginRouter := gin.New()
 
-	// 2. List all sessions
-	sessions, err := app.ListSessions(ctx)
-	if err != nil {
-		rootLogger.Error("Failed to list sessions", "error", err)
-		return
-	}
-	rootLogger.Debug("Sessions", "sessions", sessions)
+	api.RegisterRoutes(ginRouter, app)
 
-	// 3. Submit a question
-	question, err := app.SubmitQuestion(ctx, session.ID, "What was the biggest challenge?", "Alice")
-	if err != nil {
-		rootLogger.Error("Failed to submit question", "error", err)
-		return
+	// Build HTTP server
+	httpAddr := fmt.Sprintf("0.0.0.0:%d", cfg.ApiPort)
+	server := &http.Server{
+		Addr:    httpAddr,
+		Handler: ginRouter,
 	}
-	rootLogger.Debug("Submitted question", "question", question)
 
-	// 4. Get session with questions
-	sess, questions, err := app.GetSession(ctx, session.ID)
-	if err != nil {
-		rootLogger.Error("Failed to get session with questions", "error", err)
-		return
-	}
-	rootLogger.Debug("Session with questions", "session", sess, "questions", questions)
+	// Run the server in a goroutine
+	go func() {
+		rootLogger.InfoContext(rootCtx, fmt.Sprintf("HTTP server is on http://%s", httpAddr))
+		err := server.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			rootLogger.ErrorContext(rootCtx, "failed to start HTTP server", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	<-rootCtx.Done()
+
 }

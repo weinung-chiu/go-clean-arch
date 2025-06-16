@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Live Q&A Board</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2em; }
+        .session-list, .question-list { margin-bottom: 2em; }
+        .session { cursor: pointer; color: blue; text-decoration: underline; }
+        .selected { font-weight: bold; }
+        .question { margin-bottom: 1em; }
+    </style>
+</head>
+<body>
+    <h1>Live Q&A Board</h1>
+    <div class="session-list">
+        <h2>Sessions</h2>
+        <ul id="sessions"></ul>
+        <form id="new-session-form">
+            <input type="text" id="new-session-title" placeholder="New session title" required>
+            <button type="submit">Create Session</button>
+        </form>
+    </div>
+    <div id="session-detail" style="display:none;">
+        <h2 id="session-title"></h2>
+        <div class="question-list">
+            <h3>Questions</h3>
+            <ul id="questions"></ul>
+        </div>
+        <form id="question-form">
+            <input type="text" id="nickname" placeholder="Your nickname" required>
+            <input type="text" id="question-text" placeholder="Your question" required>
+            <button type="submit">Submit Question</button>
+        </form>
+        <button id="back-btn">Back to Sessions</button>
+    </div>
+    <script>
+        const apiBase = '/api/v1';
+        let currentSessionId = null;
+
+        function fetchSessions() {
+            fetch(`${apiBase}/sessions/`)
+                .then(r => r.json())
+                .then(data => {
+                    const sessions = data.data || [];
+                    const ul = document.getElementById('sessions');
+                    ul.innerHTML = '';
+                    sessions.forEach(s => {
+                        const li = document.createElement('li');
+                        li.textContent = s.title;
+                        li.className = 'session';
+                        li.onclick = () => showSession(s.id, s.title);
+                        ul.appendChild(li);
+                    });
+                });
+        }
+
+        function showSession(id, title) {
+            currentSessionId = id;
+            document.querySelector('.session-list').style.display = 'none';
+            document.getElementById('session-detail').style.display = '';
+            document.getElementById('session-title').textContent = title;
+            fetch(`${apiBase}/sessions/${id}`)
+                .then(r => r.json())
+                .then(data => {
+                    const questions = (data.data && data.data.questions) || [];
+                    const ul = document.getElementById('questions');
+                    ul.innerHTML = '';
+                    questions.forEach(q => {
+                        const li = document.createElement('li');
+                        li.className = 'question';
+                        li.textContent = `${q.author_nickname}: ${q.text}`;
+                        ul.appendChild(li);
+                    });
+                });
+        }
+
+        document.getElementById('back-btn').onclick = function() {
+            document.querySelector('.session-list').style.display = '';
+            document.getElementById('session-detail').style.display = 'none';
+            currentSessionId = null;
+        };
+
+        document.getElementById('question-form').onsubmit = function(e) {
+            e.preventDefault();
+            const text = document.getElementById('question-text').value;
+            const nickname = document.getElementById('nickname').value;
+            fetch(`${apiBase}/sessions/${currentSessionId}/questions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, nickname })
+            })
+            .then(r => r.json())
+            .then(() => {
+                document.getElementById('question-text').value = '';
+                showSession(currentSessionId, document.getElementById('session-title').textContent);
+            });
+        };
+
+        document.getElementById('new-session-form').onsubmit = function(e) {
+            e.preventDefault();
+            const title = document.getElementById('new-session-title').value;
+            fetch(`${apiBase}/sessions/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title })
+            })
+            .then(r => r.json())
+            .then(() => {
+                document.getElementById('new-session-title').value = '';
+                fetchSessions();
+            });
+        };
+
+        fetchSessions();
+    </script>
+</body>
+</html>
+
