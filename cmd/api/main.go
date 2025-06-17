@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -48,11 +49,14 @@ func main() {
 
 	memSessionRepo := adapter.NewMemorySessionRepo()
 	memQuestionRepo := adapter.NewMemoryQuestionRepo()
+	memEventBroker := adapter.NewInMemorySessionEventBroker()
 
 	app, err := usecase.NewApplication(usecase.NewApplicationParams{
-		Logger:       rootLogger,
-		SessionRepo:  memSessionRepo,
-		QuestionRepo: memQuestionRepo,
+		Logger:          rootLogger,
+		SessionRepo:     memSessionRepo,
+		QuestionRepo:    memQuestionRepo,
+		EventPublisher:  memEventBroker,
+		EventSubscriber: memEventBroker,
 	})
 	if err != nil {
 		rootLogger.Error("Failed to create application", "error", err)
@@ -80,6 +84,24 @@ func main() {
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			rootLogger.ErrorContext(rootCtx, "failed to start HTTP server", "error", err)
 			os.Exit(1)
+		}
+	}()
+
+	// for testing purposes, should do it in WebSocket handler
+	time.Sleep(10 * time.Second)
+	go func() {
+		events, err := app.SubscribeToLastestSessionEvents(rootCtx)
+		if err != nil {
+			rootLogger.ErrorContext(rootCtx, "failed to subscribe to session events", "error", err)
+			os.Exit(1)
+		}
+		for event := range events {
+			switch event.Type {
+			case usecase.SessionEventQuestionSubmitted:
+				rootLogger.InfoContext(rootCtx, "New question submitted", "session_id", event.SessionID, "question", event.Payload)
+			default:
+				rootLogger.WarnContext(rootCtx, "Unknown event type", "type", event.Type)
+			}
 		}
 	}()
 

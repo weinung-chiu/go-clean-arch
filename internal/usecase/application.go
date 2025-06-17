@@ -9,23 +9,31 @@ import (
 )
 
 type Application struct {
-	logger       *slog.Logger
-	sessionRepo  SessionRepository
-	questionRepo QuestionRepository
+	logger          *slog.Logger
+	sessionRepo     SessionRepository
+	questionRepo    QuestionRepository
+	eventPublisher  SessionEventPublisher
+	eventSubscriber SessionEventSubscriber
+
+	latestSessionID string // for testing purposes
 }
 
 func NewApplication(params NewApplicationParams) (*Application, error) {
 	return &Application{
-		logger:       params.Logger.With("component", "application"),
-		sessionRepo:  params.SessionRepo,
-		questionRepo: params.QuestionRepo,
+		logger:          params.Logger.With("component", "application"),
+		sessionRepo:     params.SessionRepo,
+		questionRepo:    params.QuestionRepo,
+		eventPublisher:  params.EventPublisher,
+		eventSubscriber: params.EventSubscriber,
 	}, nil
 }
 
 type NewApplicationParams struct {
-	Logger       *slog.Logger
-	SessionRepo  SessionRepository
-	QuestionRepo QuestionRepository
+	Logger          *slog.Logger
+	SessionRepo     SessionRepository
+	QuestionRepo    QuestionRepository
+	EventPublisher  SessionEventPublisher
+	EventSubscriber SessionEventSubscriber
 }
 
 type SessionRepository interface {
@@ -38,6 +46,31 @@ type SessionRepository interface {
 type QuestionRepository interface {
 	CreateQuestion(ctx context.Context, question *entity.Question) error
 	ListQuestionsBySession(ctx context.Context, sessionID string) ([]*entity.Question, error)
+}
+
+// SessionEventType defines the type of event in a session.
+type SessionEventType string
+
+const (
+	SessionEventQuestionSubmitted SessionEventType = "question_submitted"
+)
+
+// SessionEvent represents an event in a session.
+type SessionEvent struct {
+	Type      SessionEventType
+	SessionID string
+	Payload   any
+	Timestamp time.Time
+}
+
+// SessionEventPublisher defines the interface for publishing session events.
+type SessionEventPublisher interface {
+	Publish(ctx context.Context, event *SessionEvent) error
+}
+
+// SessionEventSubscriber defines the interface for subscribing to session events.
+type SessionEventSubscriber interface {
+	Subscribe(ctx context.Context, sessionID string) (<-chan *SessionEvent, error)
 }
 
 func (a *Application) NewSession(ctx context.Context, name string) (*entity.Session, error) {
@@ -55,6 +88,7 @@ func (a *Application) NewSession(ctx context.Context, name string) (*entity.Sess
 	}
 
 	a.logger.InfoContext(ctx, "New session created", "session_id", session.ID)
+	a.latestSessionID = session.ID
 	return session, nil
 }
 
@@ -94,5 +128,27 @@ func (a *Application) SubmitQuestion(ctx context.Context, sessionID, text, nickn
 		return nil, err
 	}
 	a.logger.InfoContext(ctx, "New question submitted", "question_id", question.ID)
+
+	event := &SessionEvent{
+		Type:      SessionEventQuestionSubmitted,
+		SessionID: sessionID,
+		Payload:   question,
+		Timestamp: time.Now(),
+	}
+	err := a.eventPublisher.Publish(ctx, event)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "Failed to publish question submitted event", "error", err)
+	}
+
 	return question, nil
+}
+
+// SubscribeToSessionEvents subscribes to session events.
+func (a *Application) SubscribeToSessionEvents(ctx context.Context, sessionID string) (<-chan *SessionEvent, error) {
+	a.logger.DebugContext(ctx, "Subscribing to session events", "session_id", sessionID)
+	return a.eventSubscriber.Subscribe(ctx, sessionID)
+}
+
+func (a *Application) SubscribeToLastestSessionEvents(ctx context.Context) (<-chan *SessionEvent, error) {
+	return a.SubscribeToSessionEvents(ctx, a.latestSessionID)
 }
