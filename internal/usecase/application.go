@@ -40,14 +40,6 @@ type QuestionRepository interface {
 	ListQuestionsBySession(ctx context.Context, sessionID string) ([]*entity.Question, error)
 }
 
-// ApplicationInterface defines the business use cases for the Q&A board.
-type ApplicationInterface interface {
-	ListSessions(ctx context.Context) ([]*entity.Session, error)
-	GetSession(ctx context.Context, sessionID string) (*entity.Session, []*entity.Question, error)
-	NewSession(ctx context.Context, title string) (*entity.Session, error)
-	SubmitQuestion(ctx context.Context, sessionID, text, nickname string) (*entity.Question, error)
-}
-
 func (a *Application) NewSession(ctx context.Context, name string) (*entity.Session, error) {
 	a.logger.DebugContext(ctx, "Creating new session", "name", name)
 
