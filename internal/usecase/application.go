@@ -50,6 +50,7 @@ type SessionEventType string
 
 const (
 	SessionEventQuestionSubmitted SessionEventType = "question_submitted"
+	SessionEventBroadcast         SessionEventType = "broadcast"
 )
 
 // SessionEvent represents an event in a session.
