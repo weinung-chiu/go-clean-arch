@@ -2,63 +2,218 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Q&A Board (Dev Mode)</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 2em; }
-        .hidden { display: none; }
-        .session-list, .question-list, .ws-messages { margin-bottom: 2em; }
-        .session { cursor: pointer; color: blue; text-decoration: underline; }
-        .selected { font-weight: bold; }
-        .error { color: red; }
-        .question { margin-bottom: 1em; }
-        .ws-messages { background: #f9f9f9; border: 1px solid #ccc; padding: 1em; max-height: 200px; overflow-y: auto; }
+        /* Base styles for the body and hidden elements */
+        body {
+            font-family: 'Inter', Arial, sans-serif; /* Using Inter font */
+            margin: 2em;
+            background-color: #f0f2f5; /* Light grey background */
+            color: #333; /* Dark grey text */
+        }
+        .hidden {
+            display: none;
+        }
+
+        /* General section styling */
+        .session-list, .question-list, .ws-messages {
+            margin-bottom: 2em;
+            background-color: #ffffff; /* White background for sections */
+            padding: 1.5em;
+            border-radius: 0.5em; /* Rounded corners */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+        }
+
+        /* Session list specific styling */
+        .session {
+            cursor: pointer;
+            color: #2563eb; /* Blue color for links */
+            text-decoration: underline;
+            padding: 0.5em 0;
+            display: block; /* Make the whole area clickable */
+            border-radius: 0.3em;
+            transition: background-color 0.2s ease; /* Smooth transition */
+        }
+        .session:hover {
+            background-color: #e0f2fe; /* Light blue on hover */
+        }
+        .selected {
+            font-weight: bold;
+            color: #1a56db; /* Darker blue for selected */
+        }
+
+        /* Error message styling */
+        .error {
+            color: #dc2626; /* Red color for errors */
+            font-size: 0.9em;
+            margin-top: 0.5em;
+        }
+
+        /* Question item styling */
+        .question {
+            margin-bottom: 1em;
+            padding: 0.8em;
+            background-color: #f8fafc; /* Very light grey for questions */
+            border-left: 4px solid #93c5fd; /* Blue border on the left */
+            border-radius: 0.3em;
+        }
+
+        /* WebSocket Messages section styling - increased height */
+        .ws-messages {
+            background: #e2e8f0; /* Light grey background */
+            border: 1px solid #cbd5e1; /* Grey border */
+            padding: 1em;
+            max-height: 400px; /* Increased height for WebSocket messages */
+            overflow-y: auto;
+            border-radius: 0.5em;
+        }
+        #ws-messages-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        #ws-messages-list li {
+            padding: 0.3em 0;
+            border-bottom: 1px dashed #a0aec0; /* Dashed separator */
+        }
+        #ws-messages-list li:last-child {
+            border-bottom: none;
+        }
+
+        /* Form and input styling */
+        input[type="text"] {
+            width: calc(100% - 100px); /* Adjust width */
+            padding: 0.8em;
+            margin-right: 0.5em;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.3em;
+            font-size: 1em;
+        }
+        button {
+            padding: 0.8em 1.2em;
+            background-color: #3b82f6; /* Blue button */
+            color: white;
+            border: none;
+            border-radius: 0.3em;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        button:hover {
+            background-color: #2563eb; /* Darker blue on hover */
+            transform: translateY(-1px); /* Slight lift effect */
+        }
+        button:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+        form {
+            display: flex;
+            margin-top: 1em;
+        }
+        form button {
+            flex-shrink: 0; /* Prevent button from shrinking */
+        }
+
+        /* Back button styling */
+        #back-btn {
+            margin-top: 1.5em;
+            background-color: #64748b; /* Grey button */
+        }
+        #back-btn:hover {
+            background-color: #4b5563; /* Darker grey on hover */
+        }
+
+        /* Headings */
+        h1, h2, h3 {
+            color: #2d3748; /* Darker text for headings */
+            margin-top: 0;
+            margin-bottom: 1em;
+        }
+        h1 span {
+            color: #6b7280; /* Lighter grey for dev mode span */
+        }
+
+        /* Flexbox for main content to manage layout */
+        #main-section {
+            display: flex;
+            flex-direction: column;
+            gap: 2em; /* Space between sections */
+        }
+        #session-detail {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5em;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            body {
+                margin: 1em;
+            }
+            input[type="text"] {
+                width: calc(100% - 90px); /* Adjust width for smaller screens */
+            }
+            form {
+                flex-direction: column; /* Stack elements on small screens */
+            }
+            form input {
+                margin-bottom: 0.5em;
+                margin-right: 0;
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1>Q&A Board <span style="color: #888; font-size: 0.5em;">(Dev Mode)</span></h1>
-    <div id="nickname-section">
-        <label>Enter your nickname (3-16 letters/numbers):
-            <input type="text" id="nickname-input" maxlength="16" pattern="[A-Za-z0-9]{3,16}" required>
-        </label>
-        <button id="set-nickname-btn">Set Nickname</button>
-        <span id="nickname-error" class="error"></span>
+<h1>Q&A Board <span style="color: #888; font-size: 0.5em;">(Dev Mode)</span></h1>
+<div id="nickname-section">
+    <label for="nickname-input">Enter your nickname (3-16 letters/numbers):</label>
+    <input type="text" id="nickname-input" maxlength="16" pattern="[A-Za-z0-9]{3,16}" required autofocus>
+    <button id="set-nickname-btn">Set Nickname</button>
+    <span id="nickname-error" class="error"></span>
+</div>
+<div id="main-section" class="hidden">
+    <div class="session-list">
+        <h2>Sessions</h2>
+        <ul id="sessions"></ul>
+        <form id="new-session-form">
+            <input type="text" id="new-session-title" placeholder="New session title" required maxlength="32">
+            <button type="submit">Create Session</button>
+        </form>
     </div>
-    <div id="main-section" class="hidden">
-        <div class="session-list">
-            <h2>Sessions</h2>
-            <ul id="sessions"></ul>
-            <form id="new-session-form">
-                <input type="text" id="new-session-title" placeholder="New session title" required maxlength="32">
-                <button type="submit">Create Session</button>
-            </form>
+    <div id="session-detail" class="hidden">
+        <h2 id="session-title"></h2>
+        <p>Your Nickname: <span id="current-nickname" style="font-weight: bold; color: #3b82f6;"></span></p>
+        <div class="question-list">
+            <h3>Questions</h3>
+            <ul id="questions"></ul>
         </div>
-        <div id="session-detail" class="hidden">
-            <h2 id="session-title"></h2>
-            <div class="question-list">
-                <h3>Questions</h3>
-                <ul id="questions"></ul>
-            </div>
-            <form id="question-form">
-                <input type="text" id="question-text" placeholder="Your question" required maxlength="256">
-                <button type="submit">Submit Question</button>
-            </form>
-            <button id="back-btn">Back to Sessions</button>
-            <div class="ws-messages">
-                <h3>WebSocket Messages</h3>
-                <ul id="ws-messages-list"></ul>
-            </div>
+        <form id="question-form">
+            <input type="text" id="question-text" placeholder="Your question" required maxlength="256">
+            <button type="submit">Submit Question</button>
+        </form>
+        <button id="back-btn">Back to Sessions</button>
+        <div class="ws-messages">
+            <h3>WebSocket Messages</h3>
+            <ul id="ws-messages-list"></ul>
         </div>
     </div>
-    <script>
+</div>
+<script>
     const apiBase = '/api/v1';
     let currentSessionId = null;
     let ws = null;
     let nickname = '';
 
+    // Function to validate the nickname input
     function validateNickname(nick) {
         return /^[A-Za-z0-9]{3,16}$/.test(nick);
     }
 
+    // Event listener for setting the nickname
     document.getElementById('set-nickname-btn').onclick = function() {
         const input = document.getElementById('nickname-input');
         const error = document.getElementById('nickname-error');
@@ -67,69 +222,87 @@
             return;
         }
         nickname = input.value;
-        error.textContent = '';
-        document.getElementById('nickname-section').classList.add('hidden');
-        document.getElementById('main-section').classList.remove('hidden');
-        fetchSessions();
+        error.textContent = ''; // Clear any previous error messages
+        document.getElementById('nickname-section').classList.add('hidden'); // Hide nickname section
+        document.getElementById('main-section').classList.remove('hidden'); // Show main content
+        fetchSessions(); // Fetch available sessions
     };
 
+    // Function to fetch and display sessions
     function fetchSessions() {
         fetch(`${apiBase}/sessions/`)
             .then(r => r.json())
             .then(data => {
                 const sessions = data.data || [];
                 const ul = document.getElementById('sessions');
-                ul.innerHTML = '';
+                ul.innerHTML = ''; // Clear existing list items
                 sessions.forEach(s => {
                     const li = document.createElement('li');
                     li.textContent = s.title;
                     li.className = 'session';
+                    li.tabIndex = 0; // Make session items focusable for tab navigation
+                    li.setAttribute('role', 'button'); // Indicate it's a clickable element
                     li.onclick = () => joinSession(s.id, s.title);
+                    li.onkeydown = (event) => { // Allow joining with Enter key
+                        if (event.key === 'Enter') {
+                            joinSession(s.id, s.title);
+                        }
+                    };
                     ul.appendChild(li);
                 });
-            });
+            })
+            .catch(error => console.error('Error fetching sessions:', error));
     }
 
+    // Function to join a specific session
     function joinSession(id, title) {
         currentSessionId = id;
-        document.querySelector('.session-list').classList.add('hidden');
-        document.getElementById('session-detail').classList.remove('hidden');
-        document.getElementById('session-title').textContent = title;
+        document.querySelector('.session-list').classList.add('hidden'); // Hide session list
+        document.getElementById('session-detail').classList.remove('hidden'); // Show session details
+        document.getElementById('session-title').textContent = title; // Set session title
+        document.getElementById('current-nickname').textContent = nickname; // Display the current nickname
         fetch(`${apiBase}/sessions/${id}`)
             .then(r => r.json())
             .then(data => {
                 const questions = (data.data && data.data.questions) || [];
                 const ul = document.getElementById('questions');
-                ul.innerHTML = '';
+                ul.innerHTML = ''; // Clear existing questions
                 questions.forEach(q => {
                     const li = document.createElement('li');
                     li.className = 'question';
+                    // Use author_nickname if available, otherwise authorNickname
                     li.textContent = `${q.author_nickname || q.authorNickname}: ${q.text}`;
                     ul.appendChild(li);
                 });
-            });
-        document.getElementById('ws-messages-list').innerHTML = '';
-        connectWebSocket(id);
+            })
+            .catch(error => console.error('Error fetching questions:', error));
+
+        document.getElementById('ws-messages-list').innerHTML = ''; // Clear previous WebSocket messages
+        connectWebSocket(id); // Connect to WebSocket for the new session
     }
 
+    // Function to add a message to the WebSocket messages list
     function addWsMessage(msg) {
         const ul = document.getElementById('ws-messages-list');
         const li = document.createElement('li');
         li.textContent = msg;
         ul.appendChild(li);
-        ul.scrollTop = ul.scrollHeight;
+        ul.scrollTop = ul.scrollHeight; // Scroll to the bottom to show latest message
     }
 
+    // Function to connect to the WebSocket
     function connectWebSocket(sessionId) {
-        if (ws) ws.close();
-        const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        if (ws) ws.close(); // Close existing connection if any
+        const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'; // Determine WebSocket protocol
         ws = new WebSocket(`${protocol}://${window.location.host}/api/v1/sessions/${sessionId}/ws`);
+
         ws.onopen = () => addWsMessage('WebSocket connected');
         ws.onmessage = (event) => addWsMessage(event.data);
         ws.onclose = () => addWsMessage('WebSocket disconnected');
         ws.onerror = () => addWsMessage('WebSocket error');
     }
 
+    // Function to disconnect from the WebSocket
     function disconnectWebSocket() {
         if (ws) {
             ws.close();
@@ -137,43 +310,55 @@
         }
     }
 
+    // Event listener for the back button
     document.getElementById('back-btn').onclick = function() {
-        document.querySelector('.session-list').classList.remove('hidden');
-        document.getElementById('session-detail').classList.add('hidden');
-        currentSessionId = null;
-        disconnectWebSocket();
+        document.querySelector('.session-list').classList.remove('hidden'); // Show session list
+        document.getElementById('session-detail').classList.add('hidden'); // Hide session details
+        currentSessionId = null; // Clear current session ID
+        disconnectWebSocket(); // Disconnect WebSocket
     };
 
+    // Event listener for submitting a new question
     document.getElementById('question-form').onsubmit = function(e) {
-        e.preventDefault();
+        e.preventDefault(); // Prevent default form submission
         const text = document.getElementById('question-text').value;
-        if (!text.trim()) return;
+        if (!text.trim()) return; // Do nothing if text is empty
+
         fetch(`${apiBase}/sessions/${currentSessionId}/questions`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text, nickname })
         })
-        .then(r => r.json())
-        .then(() => {
-            document.getElementById('question-text').value = '';
-        });
+            .then(r => r.json())
+            .then(() => {
+                document.getElementById('question-text').value = ''; // Clear input field
+            })
+            .catch(error => console.error('Error submitting question:', error));
     };
 
+    // Event listener for creating a new session
     document.getElementById('new-session-form').onsubmit = function(e) {
-        e.preventDefault();
+        e.preventDefault(); // Prevent default form submission
         const title = document.getElementById('new-session-title').value;
-        if (!title.trim()) return;
+        if (!title.trim()) return; // Do nothing if title is empty
+
         fetch(`${apiBase}/sessions/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title })
         })
-        .then(r => r.json())
-        .then(() => {
-            document.getElementById('new-session-title').value = '';
-            fetchSessions();
-        });
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('new-session-title').value = ''; // Clear input field
+                fetchSessions(); // Refresh the session list
+
+                // Automatically join the newly created session
+                if (data.data && data.data.id && data.data.title) {
+                    joinSession(data.data.id, data.data.title);
+                }
+            })
+            .catch(error => console.error('Error creating session:', error));
     };
-    </script>
+</script>
 </body>
 </html>
