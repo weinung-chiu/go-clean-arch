@@ -12,8 +12,7 @@ type Application struct {
 	logger          *slog.Logger
 	sessionRepo     SessionRepository
 	questionRepo    QuestionRepository
-	eventPublisher  SessionEventPublisher
-	eventSubscriber SessionEventSubscriber
+	sessionEventBus SessionEventBus
 
 	latestSessionID string // for testing purposes
 }
@@ -23,17 +22,15 @@ func NewApplication(params NewApplicationParams) (*Application, error) {
 		logger:          params.Logger.With("component", "application"),
 		sessionRepo:     params.SessionRepo,
 		questionRepo:    params.QuestionRepo,
-		eventPublisher:  params.EventPublisher,
-		eventSubscriber: params.EventSubscriber,
+		sessionEventBus: params.EventBus,
 	}, nil
 }
 
 type NewApplicationParams struct {
-	Logger          *slog.Logger
-	SessionRepo     SessionRepository
-	QuestionRepo    QuestionRepository
-	EventPublisher  SessionEventPublisher
-	EventSubscriber SessionEventSubscriber
+	Logger       *slog.Logger
+	SessionRepo  SessionRepository
+	QuestionRepo QuestionRepository
+	EventBus     SessionEventBus
 }
 
 type SessionRepository interface {
@@ -63,13 +60,8 @@ type SessionEvent struct {
 	Timestamp time.Time
 }
 
-// SessionEventPublisher defines the interface for publishing session events.
-type SessionEventPublisher interface {
+type SessionEventBus interface {
 	Publish(ctx context.Context, event *SessionEvent) error
-}
-
-// SessionEventSubscriber defines the interface for subscribing to session events.
-type SessionEventSubscriber interface {
 	Subscribe(ctx context.Context, sessionID string) (<-chan *SessionEvent, error)
 }
 
@@ -135,7 +127,7 @@ func (a *Application) SubmitQuestion(ctx context.Context, sessionID, text, nickn
 		Payload:   question,
 		Timestamp: time.Now(),
 	}
-	err := a.eventPublisher.Publish(ctx, event)
+	err := a.sessionEventBus.Publish(ctx, event)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "Failed to publish question submitted event", "error", err)
 	}
@@ -146,7 +138,7 @@ func (a *Application) SubmitQuestion(ctx context.Context, sessionID, text, nickn
 // SubscribeToSessionEvents subscribes to session events.
 func (a *Application) SubscribeToSessionEvents(ctx context.Context, sessionID string) (<-chan *SessionEvent, error) {
 	a.logger.DebugContext(ctx, "Subscribing to session events", "session_id", sessionID)
-	return a.eventSubscriber.Subscribe(ctx, sessionID)
+	return a.sessionEventBus.Subscribe(ctx, sessionID)
 }
 
 func (a *Application) SubscribeToLastestSessionEvents(ctx context.Context) (<-chan *SessionEvent, error) {
