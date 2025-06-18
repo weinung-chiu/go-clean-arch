@@ -2,9 +2,9 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"go-clean-arch/internal/entity"
 	"go-clean-arch/internal/usecase"
 	"log"
 	"net/http"
@@ -164,11 +164,13 @@ func HandlerWebSocketSession(app *usecase.Application) gin.HandlerFunc {
 					return
 				}
 				var msg string
-				question, ok := event.Payload.(*entity.Question)
-				if !ok {
-					msg = "Unexpected event type"
+
+				if stringer, ok := event.Payload.(fmt.Stringer); ok {
+					msg = stringer.String()
+				} else if s, ok := event.Payload.(string); ok { // 處理非 Stringer 介面的字串 Payload
+					msg = s
 				} else {
-					msg = "New question submitted: " + question.Text
+					msg = fmt.Sprintf("未知 Payload 類型或未實作 Stringer 介面: %+v (事件類型: %s)", event.Payload, event.Type)
 				}
 
 				if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {

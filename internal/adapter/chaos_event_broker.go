@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"context"
+	"fmt"
 	"go-clean-arch/internal/usecase"
 	"time"
 )
@@ -19,8 +20,8 @@ func NewChaosEventBroker(wrapped usecase.SessionEventBus) *ChaosEventBroker {
 	ceb := &ChaosEventBroker{
 		wrapped:      wrapped,
 		enableEcho:   true,             // Enable echo by default
-		enableTick:   true,             // Enable ticker by default
-		tickInterval: 13 * time.Second, // Default ticker interval
+		enableTick:   true,             // Enable ChaosPayload by default
+		tickInterval: 13 * time.Second, // Default ChaosPayload interval
 	}
 	go ceb.startTicker()
 	return ceb
@@ -28,12 +29,13 @@ func NewChaosEventBroker(wrapped usecase.SessionEventBus) *ChaosEventBroker {
 
 func (c *ChaosEventBroker) Publish(ctx context.Context, event *usecase.SessionEvent) error {
 	c.lastSessionID = event.SessionID // Store the last session ID for testing purposes
-	_ = c.wrapped.Publish(ctx, &usecase.SessionEvent{
+	echoEvent := &usecase.SessionEvent{
 		Type:      usecase.SessionEventBroadcast,
-		SessionID: event.SessionID,
-		Payload:   "dummy payload for chaos event",
+		SessionID: c.lastSessionID,
+		Payload:   &ChaosPayload{message: fmt.Sprintf("echo: %s", event.Payload)},
 		Timestamp: time.Now(),
-	})
+	}
+	_ = c.wrapped.Publish(ctx, echoEvent)
 	return c.wrapped.Publish(ctx, event)
 }
 
@@ -49,10 +51,18 @@ func (c *ChaosEventBroker) startTicker() {
 		event := &usecase.SessionEvent{
 			Type:      "SessionEventBroadcast",
 			SessionID: c.lastSessionID,
-			Payload:   "ticker event from chaos event broker",
+			Payload:   &ChaosPayload{message: fmt.Sprintf("Current Time: %s", time.Now().Format(time.TimeOnly))},
 			Timestamp: time.Now(),
 		}
 		// Use background context for broadcast
 		_ = c.wrapped.Publish(context.Background(), event)
 	}
+}
+
+type ChaosPayload struct {
+	message string
+}
+
+func (t *ChaosPayload) String() string {
+	return fmt.Sprintf("[Server] - Chaos: %s", t.message)
 }

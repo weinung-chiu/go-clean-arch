@@ -1,6 +1,9 @@
 package entity
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // Session represents a single Q&A event, like a conference talk or a meeting.
 // 每個 Session 代表一個獨立的問答活動，例如一場演講或會議。
@@ -46,6 +49,10 @@ type Question struct {
 	// CreatedAt is the timestamp when the question was submitted.
 	// CreatedAt 是問題被提交時的時間戳。
 	CreatedAt time.Time
+}
+
+func (q *Question) String() string {
+	return fmt.Sprintf("[Partcipant: %s] %s", q.AuthorNickname, q.Text)
 }
 
 // Participant represents a user connected to a session.
