@@ -1,9 +1,14 @@
 package api
 
 import (
+	"context"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
+	"go-clean-arch/internal/entity"
 	"go-clean-arch/internal/usecase"
+	"log"
 	"net/http"
+	"time"
 )
 
 func respondWithError(c *gin.Context, err error) {
@@ -109,5 +114,67 @@ func HandlerSubmitQuestion(app *usecase.Application) gin.HandlerFunc {
 			Upvotes:        question.Upvotes,
 			CreatedAt:      question.CreatedAt,
 		}})
+	}
+}
+
+// HandlerWebSocketSession handles WebSocket connections for session events
+func HandlerWebSocketSession(app *usecase.Application) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sessionID := c.Param("id")
+		upgrader := websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool { return true },
+		}
+		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+		if err != nil {
+			log.Println("WebSocket upgrade error:", err)
+			return
+		}
+		defer conn.Close()
+
+		ctx, cancel := context.WithCancel(c.Request.Context())
+		defer cancel()
+
+		eventCh, _ := app.SubscribeToSessionEvents(ctx, sessionID)
+		//defer unsubscribe()
+
+		pongWait := 60 * time.Second
+		pingPeriod := (pongWait * 9) / 10
+		conn.SetReadDeadline(time.Now().Add(pongWait))
+		conn.SetPongHandler(func(string) error {
+			conn.SetReadDeadline(time.Now().Add(pongWait))
+			return nil
+		})
+
+		go func() {
+			for {
+				time.Sleep(pingPeriod)
+				if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+					cancel()
+					return
+				}
+			}
+		}()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case event, ok := <-eventCh:
+				if !ok {
+					return
+				}
+				var msg string
+				question, ok := event.Payload.(*entity.Question)
+				if !ok {
+					msg = "Unexpected event type"
+				} else {
+					msg = "New question submitted: " + question.Text
+				}
+
+				if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+					return
+				}
+			}
+		}
 	}
 }

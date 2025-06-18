@@ -13,6 +13,7 @@ func RegisterRoutes(r *gin.Engine, app *usecase.Application) {
 	api := r.Group("/api")
 	v1 := api.Group("/v1")
 	sessions := v1.Group("/sessions")
+	sessions.GET(":id/ws", HandlerWebSocketSession(app))
 	sessions.GET("/", HandlerListSessions(app))
 	sessions.POST("/", HandlerNewSession(app))
 	sessions.GET(":id", HandlerGetSession(app))

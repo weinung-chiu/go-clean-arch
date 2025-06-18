@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
-	"time"
-
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"go-clean-arch/internal/adapter"
@@ -15,6 +12,7 @@ import (
 	"go-clean-arch/internal/platform/logger"
 	"go-clean-arch/internal/usecase"
 	"log/slog"
+	"net/http"
 	"os"
 )
 
@@ -84,24 +82,6 @@ func main() {
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			rootLogger.ErrorContext(rootCtx, "failed to start HTTP server", "error", err)
 			os.Exit(1)
-		}
-	}()
-
-	// for testing purposes, should do it in WebSocket handler
-	time.Sleep(10 * time.Second)
-	go func() {
-		events, err := app.SubscribeToLastestSessionEvents(rootCtx)
-		if err != nil {
-			rootLogger.ErrorContext(rootCtx, "failed to subscribe to session events", "error", err)
-			os.Exit(1)
-		}
-		for event := range events {
-			switch event.Type {
-			case usecase.SessionEventQuestionSubmitted:
-				rootLogger.InfoContext(rootCtx, "New question submitted", "session_id", event.SessionID, "question", event.Payload)
-			default:
-				rootLogger.WarnContext(rootCtx, "Unknown event type", "type", event.Type)
-			}
 		}
 	}()
 
