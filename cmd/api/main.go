@@ -48,13 +48,12 @@ func main() {
 	memSessionRepo := adapter.NewMemorySessionRepo()
 	memQuestionRepo := adapter.NewMemoryQuestionRepo()
 	memEventBroker := adapter.NewInMemorySessionEventBroker()
-	chaosEventBroker := adapter.NewChaosEventBroker(memEventBroker)
 
 	app, err := usecase.NewApplication(usecase.NewApplicationParams{
 		Logger:       rootLogger,
 		SessionRepo:  memSessionRepo,
 		QuestionRepo: memQuestionRepo,
-		EventBus:     chaosEventBroker,
+		EventBus:     memEventBroker,
 	})
 	if err != nil {
 		rootLogger.Error("Failed to create application", "error", err)
