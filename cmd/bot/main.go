@@ -73,10 +73,11 @@ func main() {
 		apiBase = "http://localhost"
 	}
 	interval := flag.Int("interval", 30, "Interval in seconds between questions")
+	limit := flag.Int("limit", 30, "Maximum number of questions to submit per session")
 	flag.Parse()
 	rand.Seed(time.Now().UnixNano())
 
-	for {
+	for range *limit {
 		sessions, err := getSessions(apiBase)
 		if err != nil {
 			fmt.Println("Error fetching sessions:", err)
