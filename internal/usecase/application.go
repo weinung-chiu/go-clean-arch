@@ -116,16 +116,19 @@ func (a *Application) SubmitQuestion(ctx context.Context, sessionID, text, nickn
 		return nil, err
 	}
 	a.logger.InfoContext(ctx, "New question submitted", "question_id", question.ID)
-
+	questions, err := a.questionRepo.ListQuestionsBySession(ctx, sessionID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "Failed to fetch updated questions", "error", err)
+		return nil, err
+	}
 	event := &EventQuestionUpdated{
 		SessionID: sessionID,
 		Timestamp: time.Now(),
 
-		// TODO: fetch updated questions and participants
-		Questions:    []*entity.Question{question},
+		Questions:    questions,
 		Participants: nil, // Assuming we don't track participants in this example
 	}
-	err := a.sessionEventBus.Broadcast(ctx, event)
+	err = a.sessionEventBus.Broadcast(ctx, event)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "Failed to publish question submitted event", "error", err)
 	}

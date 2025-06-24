@@ -240,7 +240,7 @@
                     const li = document.createElement('li');
                     li.textContent = s.title;
                     li.className = 'session';
-                    li.tabIndex = 0; // Make session items focusable for tab navigation
+                    li.tabIndex = 0; // Make the whole session item focusable
                     li.setAttribute('role', 'button'); // Indicate it's a clickable element
                     li.onclick = () => joinSession(s.id, s.title);
                     li.onkeydown = (event) => { // Allow joining with Enter key
@@ -297,7 +297,24 @@
         ws = new WebSocket(`${protocol}://${window.location.host}/api/v1/sessions/${sessionId}/ws`);
 
         ws.onopen = () => addWsMessage('WebSocket connected');
-        ws.onmessage = (event) => addWsMessage(event.data);
+        ws.onmessage = (event) => {
+            addWsMessage(event.data);
+            try {
+                const data = JSON.parse(event.data);
+                if (data.questions) {
+                    const ul = document.getElementById('questions');
+                    ul.innerHTML = '';
+                    data.questions.forEach(q => {
+                        const li = document.createElement('li');
+                        li.className = 'question';
+                        li.textContent = `${q.author_nickname || q.authorNickname}: ${q.text}`;
+                        ul.appendChild(li);
+                    });
+                }
+            } catch (e) {
+                // Not a JSON payload or invalid format, ignore for UI update
+            }
+        };
         ws.onclose = () => addWsMessage('WebSocket disconnected');
         ws.onerror = () => addWsMessage('WebSocket error');
     }

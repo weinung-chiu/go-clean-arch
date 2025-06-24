@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"go-clean-arch/internal/usecase"
@@ -163,7 +164,23 @@ func HandlerWebSocketSession(app *usecase.Application) gin.HandlerFunc {
 					return
 				}
 
-				if err := conn.WriteMessage(websocket.TextMessage, []byte(event.SessionID)); err != nil {
+				// Marshal the questions list to JSON and send as WS payload
+				questions := make([]Question, 0, len(event.Questions))
+				for _, q := range event.Questions {
+					questions = append(questions, Question{
+						ID:             q.ID,
+						SessionID:      q.SessionID,
+						Text:           q.Text,
+						AuthorNickname: q.AuthorNickname,
+						Upvotes:        q.Upvotes,
+						CreatedAt:      q.CreatedAt,
+					})
+				}
+				payload, err := json.Marshal(gin.H{"questions": questions})
+				if err != nil {
+					return
+				}
+				if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
 					return
 				}
 			}
