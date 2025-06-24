@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"go-clean-arch/internal/usecase"
@@ -134,7 +133,7 @@ func HandlerWebSocketSession(app *usecase.Application) gin.HandlerFunc {
 		ctx, cancel := context.WithCancel(c.Request.Context())
 		defer cancel()
 
-		eventCh, _ := app.SubscribeToSessionEvents(ctx, sessionID)
+		eventCh, _ := app.SubscribeToQuestionUpdatedEvents(ctx, sessionID)
 		//defer unsubscribe()
 
 		pongWait := 60 * time.Second
@@ -163,17 +162,8 @@ func HandlerWebSocketSession(app *usecase.Application) gin.HandlerFunc {
 				if !ok {
 					return
 				}
-				var msg string
 
-				if stringer, ok := event.Payload.(fmt.Stringer); ok {
-					msg = stringer.String()
-				} else if s, ok := event.Payload.(string); ok { // 處理非 Stringer 介面的字串 Payload
-					msg = s
-				} else {
-					msg = fmt.Sprintf("未知 Payload 類型或未實作 Stringer 介面: %+v (事件類型: %s)", event.Payload, event.Type)
-				}
-
-				if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+				if err := conn.WriteMessage(websocket.TextMessage, []byte(event.SessionID)); err != nil {
 					return
 				}
 			}

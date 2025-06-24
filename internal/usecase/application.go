@@ -12,7 +12,7 @@ type Application struct {
 	logger          *slog.Logger
 	sessionRepo     SessionRepository
 	questionRepo    QuestionRepository
-	sessionEventBus SessionEventBus
+	sessionEventBus BroadcastHandler
 
 	latestSessionID string // for testing purposes
 }
@@ -30,7 +30,7 @@ type NewApplicationParams struct {
 	Logger       *slog.Logger
 	SessionRepo  SessionRepository
 	QuestionRepo QuestionRepository
-	EventBus     SessionEventBus
+	EventBus     BroadcastHandler
 }
 
 type SessionRepository interface {
@@ -45,25 +45,20 @@ type QuestionRepository interface {
 	ListQuestionsBySession(ctx context.Context, sessionID string) ([]*entity.Question, error)
 }
 
-// SessionEventType defines the type of event in a session.
-type SessionEventType string
-
-const (
-	SessionEventQuestionSubmitted SessionEventType = "question_submitted"
-	SessionEventBroadcast         SessionEventType = "broadcast"
-)
-
-// SessionEvent represents an event in a session.
-type SessionEvent struct {
-	Type      SessionEventType
+// EventQuestionUpdated is the event type for when a question is updated in a session.
+// for simplicity, this is only type of event we handle in this example.
+type EventQuestionUpdated struct {
 	SessionID string
-	Payload   any
 	Timestamp time.Time
+
+	// payloads
+	Questions    []*entity.Question
+	Participants []*entity.Participant
 }
 
-type SessionEventBus interface {
-	Publish(ctx context.Context, event *SessionEvent) error
-	Subscribe(ctx context.Context, sessionID string) (<-chan *SessionEvent, error)
+type BroadcastHandler interface {
+	Broadcast(ctx context.Context, event *EventQuestionUpdated) error
+	Subscribe(ctx context.Context, sessionID string) (<-chan *EventQuestionUpdated, error)
 }
 
 func (a *Application) NewSession(ctx context.Context, name string) (*entity.Session, error) {
@@ -122,13 +117,15 @@ func (a *Application) SubmitQuestion(ctx context.Context, sessionID, text, nickn
 	}
 	a.logger.InfoContext(ctx, "New question submitted", "question_id", question.ID)
 
-	event := &SessionEvent{
-		Type:      SessionEventQuestionSubmitted,
+	event := &EventQuestionUpdated{
 		SessionID: sessionID,
-		Payload:   question,
 		Timestamp: time.Now(),
+
+		// TODO: fetch updated questions and participants
+		Questions:    []*entity.Question{question},
+		Participants: nil, // Assuming we don't track participants in this example
 	}
-	err := a.sessionEventBus.Publish(ctx, event)
+	err := a.sessionEventBus.Broadcast(ctx, event)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "Failed to publish question submitted event", "error", err)
 	}
@@ -136,12 +133,12 @@ func (a *Application) SubmitQuestion(ctx context.Context, sessionID, text, nickn
 	return question, nil
 }
 
-// SubscribeToSessionEvents subscribes to session events.
-func (a *Application) SubscribeToSessionEvents(ctx context.Context, sessionID string) (<-chan *SessionEvent, error) {
+// SubscribeToQuestionUpdatedEvents subscribes to session events.
+func (a *Application) SubscribeToQuestionUpdatedEvents(ctx context.Context, sessionID string) (<-chan *EventQuestionUpdated, error) {
 	a.logger.DebugContext(ctx, "Subscribing to session events", "session_id", sessionID)
 	return a.sessionEventBus.Subscribe(ctx, sessionID)
 }
 
-func (a *Application) SubscribeToLastestSessionEvents(ctx context.Context) (<-chan *SessionEvent, error) {
-	return a.SubscribeToSessionEvents(ctx, a.latestSessionID)
+func (a *Application) SubscribeToLastestSessionEvents(ctx context.Context) (<-chan *EventQuestionUpdated, error) {
+	return a.SubscribeToQuestionUpdatedEvents(ctx, a.latestSessionID)
 }
