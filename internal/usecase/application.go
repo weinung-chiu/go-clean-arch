@@ -20,15 +20,14 @@ func NewApplication(params NewApplicationParams) (*Application, error) {
 		logger:                 params.Logger.With("component", "application"),
 		sessionRepo:            params.SessionRepo,
 		questionRepo:           params.QuestionRepo,
-		clientEventBroadcaster: params.ClientEventBroadcaster,
+		clientEventBroadcaster: newClientEventBroadcaster(),
 	}, nil
 }
 
 type NewApplicationParams struct {
-	Logger                 *slog.Logger
-	SessionRepo            SessionRepository
-	QuestionRepo           QuestionRepository
-	ClientEventBroadcaster ClientEventBroadcaster
+	Logger       *slog.Logger
+	SessionRepo  SessionRepository
+	QuestionRepo QuestionRepository
 }
 
 type SessionRepository interface {

@@ -1,24 +1,23 @@
-package adapter
+package usecase
 
 import (
 	"context"
-	"go-clean-arch/internal/usecase"
 	"sync"
 )
 
-type MemoryEventBus struct {
+type clientEventBroadcaster struct {
 	mu          sync.RWMutex
-	subscribers map[string][]chan *usecase.ClientEventQuestionUpdated
+	subscribers map[string][]chan *ClientEventQuestionUpdated
 }
 
-func NewInMemorySessionEventBroker() *MemoryEventBus {
-	return &MemoryEventBus{
-		subscribers: make(map[string][]chan *usecase.ClientEventQuestionUpdated),
+func newClientEventBroadcaster() *clientEventBroadcaster {
+	return &clientEventBroadcaster{
+		subscribers: make(map[string][]chan *ClientEventQuestionUpdated),
 	}
 }
 
 // Broadcast sends the event to all subscribers of the given session ID.
-func (b *MemoryEventBus) Broadcast(ctx context.Context, event *usecase.ClientEventQuestionUpdated) error {
+func (b *clientEventBroadcaster) Broadcast(ctx context.Context, event *ClientEventQuestionUpdated) error {
 	b.mu.RLock()
 	chs := b.subscribers[event.SessionID]
 	b.mu.RUnlock()
@@ -33,8 +32,8 @@ func (b *MemoryEventBus) Broadcast(ctx context.Context, event *usecase.ClientEve
 	}
 	return nil
 }
-func (b *MemoryEventBus) Subscribe(ctx context.Context, sessionID string) (<-chan *usecase.ClientEventQuestionUpdated, error) {
-	ch := make(chan *usecase.ClientEventQuestionUpdated, 16)
+func (b *clientEventBroadcaster) Subscribe(ctx context.Context, sessionID string) (<-chan *ClientEventQuestionUpdated, error) {
+	ch := make(chan *ClientEventQuestionUpdated, 16)
 	b.mu.Lock()
 	b.subscribers[sessionID] = append(b.subscribers[sessionID], ch)
 	b.mu.Unlock()
