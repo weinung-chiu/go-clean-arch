@@ -13,8 +13,6 @@ type Application struct {
 	sessionRepo     SessionRepository
 	questionRepo    QuestionRepository
 	sessionEventBus BroadcastHandler
-
-	latestSessionID string // for testing purposes
 }
 
 func NewApplication(params NewApplicationParams) (*Application, error) {
@@ -76,7 +74,7 @@ func (a *Application) NewSession(ctx context.Context, name string) (*entity.Sess
 	}
 
 	a.logger.InfoContext(ctx, "New session created", "session_id", session.ID)
-	a.latestSessionID = session.ID
+
 	return session, nil
 }
 
@@ -140,8 +138,4 @@ func (a *Application) SubmitQuestion(ctx context.Context, sessionID, text, nickn
 func (a *Application) SubscribeToQuestionUpdatedEvents(ctx context.Context, sessionID string) (<-chan *EventQuestionUpdated, error) {
 	a.logger.DebugContext(ctx, "Subscribing to session events", "session_id", sessionID)
 	return a.sessionEventBus.Subscribe(ctx, sessionID)
-}
-
-func (a *Application) SubscribeToLastestSessionEvents(ctx context.Context) (<-chan *EventQuestionUpdated, error) {
-	return a.SubscribeToQuestionUpdatedEvents(ctx, a.latestSessionID)
 }
