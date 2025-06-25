@@ -171,7 +171,3 @@ func (a *Application) UpvoteQuestion(ctx context.Context, questionID, participan
 	_ = a.clientEventBroadcaster.Broadcast(ctx, event)
 	return nil
 }
-
-func (a *Application) GetQuestionByID(ctx context.Context, questionID string) (*entity.Question, error) {
-	return a.questionRepo.GetQuestionByID(ctx, questionID)
-}
