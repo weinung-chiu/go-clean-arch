@@ -175,6 +175,7 @@ func HandlerWebSocketSession(app *usecase.Application) gin.HandlerFunc {
 						AuthorNickname: q.AuthorNickname,
 						Upvotes:        q.Upvotes,
 						CreatedAt:      q.CreatedAt,
+						UpvotedBy:      q.UpvotedBy,
 					})
 				}
 				payload, err := json.Marshal(gin.H{"questions": questions})

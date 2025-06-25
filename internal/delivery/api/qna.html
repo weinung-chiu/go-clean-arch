@@ -53,7 +53,7 @@
         /* Question item styling */
         .question {
             margin-bottom: 1em;
-            padding: 0.8em;
+            padding: 1em;
             background-color: #f8fafc; /* Very light grey for questions */
             border-left: 4px solid #93c5fd; /* Blue border on the left */
             border-radius: 0.3em;
@@ -310,6 +310,7 @@
         }
     }
 
+    // MODIFIED aS PER YOUR REQUEST
     // Function to render questions with upvote button and upvote info
     function renderQuestions(questions) {
         const ul = document.getElementById('questions');
@@ -317,30 +318,57 @@
         questions.forEach(q => {
             const li = document.createElement('li');
             li.className = 'question';
-            // Upvote info
-            const upvoteInfo = document.createElement('div');
-            upvoteInfo.style.fontSize = '0.95em';
-            upvoteInfo.style.marginBottom = '0.2em';
-            const upvoters = q.upvotedBy ? Object.values(q.upvotedBy) : [];
-            upvoteInfo.textContent = `Upvotes: ${q.upvotes}` + (upvoters.length > 0 ? ` (by: ${upvoters.join(', ')})` : '');
-            li.appendChild(upvoteInfo);
-            // Question text
+
+            // Question author and text
             const textDiv = document.createElement('div');
-            textDiv.textContent = `${q.author_nickname || q.authorNickname}: ${q.text}`;
+            textDiv.innerHTML = `<span style="font-weight:bold;">${q.author_nickname || q.authorNickname}:</span> ${q.text}`;
             li.appendChild(textDiv);
+
+            // Container for button and upvote info
+            const controlsDiv = document.createElement('div');
+            controlsDiv.style.display = 'flex';
+            controlsDiv.style.alignItems = 'center';
+            controlsDiv.style.marginTop = '0.5em';
+
             // Upvote button
             const upvoteBtn = document.createElement('button');
-            upvoteBtn.textContent = 'Upvote';
-            upvoteBtn.style.marginLeft = '1em';
-            upvoteBtn.disabled = (q.author_nickname || q.authorNickname) === nickname || (q.upvotedBy && q.upvotedBy[nickname]);
-            upvoteBtn.onclick = () => upvoteQuestion(q.id);
-            // Only show if not author and not already upvoted
-            if (!upvoteBtn.disabled) {
-                li.appendChild(upvoteBtn);
+            upvoteBtn.textContent = '👍 Upvote'; // MODIFIED: Use emoji and text
+            upvoteBtn.style.marginRight = '1em';
+            upvoteBtn.style.padding = '0.2em 0.6em'; // Smaller padding
+            upvoteBtn.style.fontSize = '0.9em'; // Smaller font
+
+            controlsDiv.appendChild(upvoteBtn);
+
+            // Upvote count and list of upvoters
+            const upvoteInfo = document.createElement('div');
+            upvoteInfo.style.fontSize = '0.85em';
+            upvoteInfo.style.color = '#64748b';
+
+            // MODIFIED: Handle 'upvoted_by' from your new JSON structure and fall back to 'upvotedBy'
+            const upvotersObject = q.upvoted_by || q.upvotedBy || {};
+            const upvoters = Object.values(upvotersObject);
+
+            // MODIFIED: Display the count and the list of people who upvoted
+            if (q.upvotes > 0 && upvoters.length > 0) {
+                upvoteInfo.textContent = `${q.upvotes} upvote${q.upvotes > 1 ? 's' : ''} by ${upvoters.join(', ')}`;
+            } else if (q.upvotes > 0) {
+                upvoteInfo.textContent = `${q.upvotes} upvote${q.upvotes > 1 ? 's' : ''}`;
+            } else {
+                upvoteInfo.textContent = 'No upvotes yet.';
             }
+            controlsDiv.appendChild(upvoteInfo);
+
+            li.appendChild(controlsDiv);
+
+            // MODIFIED: Disable button if user is author or has already upvoted by checking the values
+            const hasUpvoted = upvoters.includes(nickname);
+            upvoteBtn.disabled = (q.author_nickname || q.authorNickname) === nickname || hasUpvoted;
+            upvoteBtn.onclick = () => upvoteQuestion(q.id);
+
             ul.appendChild(li);
         });
     }
+
 
     // Function to upvote a question
     function upvoteQuestion(questionId) {
@@ -349,12 +377,12 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ participant_id: nickname, nickname: nickname })
         })
-        .then(r => r.json())
-        .then(data => {
-            if (data.data && data.data.questions) {
-                renderQuestions(data.data.questions);
-            }
-        });
+            .then(r => r.json())
+            .then(data => {
+                if (data.data && data.data.questions) {
+                    renderQuestions(data.data.questions);
+                }
+            });
     }
 
     // Event listener for the back button
