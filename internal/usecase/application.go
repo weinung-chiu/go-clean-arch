@@ -40,6 +40,8 @@ type SessionRepository interface {
 type QuestionRepository interface {
 	CreateQuestion(ctx context.Context, question *entity.Question) error
 	ListQuestionsBySession(ctx context.Context, sessionID string) ([]*entity.Question, error)
+	GetQuestionByID(ctx context.Context, questionID string) (*entity.Question, error)
+	UpvoteQuestionByID(ctx context.Context, questionID, participantID, participantNickname string) (bool, error)
 }
 
 type ClientEventBroadcaster interface {
@@ -137,4 +139,37 @@ func (a *Application) SubmitQuestion(ctx context.Context, sessionID, text, nickn
 func (a *Application) SubscribeToClientEvent(ctx context.Context, sessionID string) (<-chan *ClientEventQuestionUpdated, error) {
 	a.logger.DebugContext(ctx, "Subscribing to session events", "session_id", sessionID)
 	return a.clientEventBroadcaster.Subscribe(ctx, sessionID)
+}
+
+// UpvoteQuestionByQuestionID Upvote a question by its ID only (no sessionID required)
+func (a *Application) UpvoteQuestionByQuestionID(ctx context.Context, questionID, participantID, participantNickname string) error {
+	success, err := a.questionRepo.UpvoteQuestionByID(ctx, questionID, participantID, participantNickname)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "Failed to upvote question by ID", "error", err)
+		return err
+	}
+	if !success {
+		return nil
+	}
+	// Broadcast updated question's session's questions
+	q, err := a.questionRepo.GetQuestionByID(ctx, questionID)
+	if err != nil {
+		return err
+	}
+	questions, err := a.questionRepo.ListQuestionsBySession(ctx, q.SessionID)
+	if err != nil {
+		return err
+	}
+	event := &ClientEventQuestionUpdated{
+		SessionID:    q.SessionID,
+		Timestamp:    time.Now(),
+		Questions:    questions,
+		Participants: nil,
+	}
+	_ = a.clientEventBroadcaster.Broadcast(ctx, event)
+	return nil
+}
+
+func (a *Application) GetQuestionByID(ctx context.Context, questionID string) (*entity.Question, error) {
+	return a.questionRepo.GetQuestionByID(ctx, questionID)
 }

@@ -15,10 +15,11 @@ type Session struct {
 }
 
 type Question struct {
-	ID             string    `json:"id"`
-	SessionID      string    `json:"session_id"`
-	Text           string    `json:"text"`
-	AuthorNickname string    `json:"author_nickname"`
-	Upvotes        int       `json:"upvotes"`
-	CreatedAt      time.Time `json:"created_at"`
+	ID             string            `json:"id"`
+	SessionID      string            `json:"session_id"`
+	Text           string            `json:"text"`
+	AuthorNickname string            `json:"author_nickname"`
+	Upvotes        int               `json:"upvotes"`
+	CreatedAt      time.Time         `json:"created_at"`
+	UpvotedBy      map[string]string `json:"upvoted_by"` // map of user ID to nickname
 }

@@ -12,6 +12,7 @@ import (
 )
 
 func respondWithError(c *gin.Context, err error) {
+	// TODO: return correct HTTP status codes based on error type
 	c.JSON(http.StatusInternalServerError, SessionAPIResp{Error: err.Error()})
 }
 
@@ -185,5 +186,29 @@ func HandlerWebSocketSession(app *usecase.Application) gin.HandlerFunc {
 				}
 			}
 		}
+	}
+}
+
+// HandlerUpvoteQuestion handles POST /questions/:id/upvote
+func HandlerUpvoteQuestion(app *usecase.Application) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		questionID := c.Param("id")
+		var req struct {
+			ParticipantID       string `json:"participant_id"`
+			ParticipantNickname string `json:"nickname"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, SessionAPIResp{Error: "invalid request body"})
+			return
+		}
+		// Upvote the question by ID only (no sessionID needed)
+		err := app.UpvoteQuestionByQuestionID(c.Request.Context(), questionID, req.ParticipantID, req.ParticipantNickname)
+		if err != nil {
+			respondWithError(c, err)
+			return
+		}
+
+		// we will broadcast the updated session via broadcast mechanism
+		c.JSON(http.StatusOK, nil)
 	}
 }

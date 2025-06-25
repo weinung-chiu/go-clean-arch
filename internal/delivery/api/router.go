@@ -18,4 +18,7 @@ func RegisterRoutes(r *gin.Engine, app *usecase.Application) {
 	sessions.POST("/", HandlerNewSession(app))
 	sessions.GET(":id", HandlerGetSession(app))
 	sessions.POST(":id/questions", HandlerSubmitQuestion(app))
+
+	questions := v1.Group("/questions")
+	questions.POST(":id/upvote", HandlerUpvoteQuestion(app))
 }

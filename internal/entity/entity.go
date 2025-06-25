@@ -49,6 +49,10 @@ type Question struct {
 	// CreatedAt is the timestamp when the question was submitted.
 	// CreatedAt 是問題被提交時的時間戳。
 	CreatedAt time.Time
+
+	// UpvotedBy maps participant IDs to their nicknames for this question's upvotes.
+	// UpvotedBy 將參與者 ID 對應到他們的暱稱，以記錄對此問題的附議情況。
+	UpvotedBy map[string]string
 }
 
 func (q *Question) String() string {

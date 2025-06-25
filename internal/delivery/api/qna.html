@@ -265,15 +265,7 @@
             .then(r => r.json())
             .then(data => {
                 const questions = (data.data && data.data.questions) || [];
-                const ul = document.getElementById('questions');
-                ul.innerHTML = ''; // Clear existing questions
-                questions.forEach(q => {
-                    const li = document.createElement('li');
-                    li.className = 'question';
-                    // Use author_nickname if available, otherwise authorNickname
-                    li.textContent = `${q.author_nickname || q.authorNickname}: ${q.text}`;
-                    ul.appendChild(li);
-                });
+                renderQuestions(questions);
             })
             .catch(error => console.error('Error fetching questions:', error));
 
@@ -298,22 +290,13 @@
 
         ws.onopen = () => addWsMessage('WebSocket connected');
         ws.onmessage = (event) => {
-            addWsMessage(event.data);
+            addWsMessage('Received: ' + event.data);
             try {
-                const data = JSON.parse(event.data);
-                if (data.questions) {
-                    const ul = document.getElementById('questions');
-                    ul.innerHTML = '';
-                    data.questions.forEach(q => {
-                        const li = document.createElement('li');
-                        li.className = 'question';
-                        li.textContent = `${q.author_nickname || q.authorNickname}: ${q.text}`;
-                        ul.appendChild(li);
-                    });
+                const msg = JSON.parse(event.data);
+                if (msg.questions) {
+                    renderQuestions(msg.questions);
                 }
-            } catch (e) {
-                // Not a JSON payload or invalid format, ignore for UI update
-            }
+            } catch (e) {}
         };
         ws.onclose = () => addWsMessage('WebSocket disconnected');
         ws.onerror = () => addWsMessage('WebSocket error');
@@ -325,6 +308,53 @@
             ws.close();
             ws = null;
         }
+    }
+
+    // Function to render questions with upvote button and upvote info
+    function renderQuestions(questions) {
+        const ul = document.getElementById('questions');
+        ul.innerHTML = '';
+        questions.forEach(q => {
+            const li = document.createElement('li');
+            li.className = 'question';
+            // Upvote info
+            const upvoteInfo = document.createElement('div');
+            upvoteInfo.style.fontSize = '0.95em';
+            upvoteInfo.style.marginBottom = '0.2em';
+            const upvoters = q.upvotedBy ? Object.values(q.upvotedBy) : [];
+            upvoteInfo.textContent = `Upvotes: ${q.upvotes}` + (upvoters.length > 0 ? ` (by: ${upvoters.join(', ')})` : '');
+            li.appendChild(upvoteInfo);
+            // Question text
+            const textDiv = document.createElement('div');
+            textDiv.textContent = `${q.author_nickname || q.authorNickname}: ${q.text}`;
+            li.appendChild(textDiv);
+            // Upvote button
+            const upvoteBtn = document.createElement('button');
+            upvoteBtn.textContent = 'Upvote';
+            upvoteBtn.style.marginLeft = '1em';
+            upvoteBtn.disabled = (q.author_nickname || q.authorNickname) === nickname || (q.upvotedBy && q.upvotedBy[nickname]);
+            upvoteBtn.onclick = () => upvoteQuestion(q.id);
+            // Only show if not author and not already upvoted
+            if (!upvoteBtn.disabled) {
+                li.appendChild(upvoteBtn);
+            }
+            ul.appendChild(li);
+        });
+    }
+
+    // Function to upvote a question
+    function upvoteQuestion(questionId) {
+        fetch(`${apiBase}/questions/${questionId}/upvote`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ participant_id: nickname, nickname: nickname })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.data && data.data.questions) {
+                renderQuestions(data.data.questions);
+            }
+        });
     }
 
     // Event listener for the back button
