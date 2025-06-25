@@ -9,26 +9,26 @@ import (
 )
 
 type Application struct {
-	logger          *slog.Logger
-	sessionRepo     SessionRepository
-	questionRepo    QuestionRepository
-	sessionEventBus BroadcastHandler
+	logger                 *slog.Logger
+	sessionRepo            SessionRepository
+	questionRepo           QuestionRepository
+	clientEventBroadcaster ClientEventBroadcaster
 }
 
 func NewApplication(params NewApplicationParams) (*Application, error) {
 	return &Application{
-		logger:          params.Logger.With("component", "application"),
-		sessionRepo:     params.SessionRepo,
-		questionRepo:    params.QuestionRepo,
-		sessionEventBus: params.EventBus,
+		logger:                 params.Logger.With("component", "application"),
+		sessionRepo:            params.SessionRepo,
+		questionRepo:           params.QuestionRepo,
+		clientEventBroadcaster: params.ClientEventBroadcaster,
 	}, nil
 }
 
 type NewApplicationParams struct {
-	Logger       *slog.Logger
-	SessionRepo  SessionRepository
-	QuestionRepo QuestionRepository
-	EventBus     BroadcastHandler
+	Logger                 *slog.Logger
+	SessionRepo            SessionRepository
+	QuestionRepo           QuestionRepository
+	ClientEventBroadcaster ClientEventBroadcaster
 }
 
 type SessionRepository interface {
@@ -43,20 +43,20 @@ type QuestionRepository interface {
 	ListQuestionsBySession(ctx context.Context, sessionID string) ([]*entity.Question, error)
 }
 
-// EventQuestionUpdated is the event type for when a question is updated in a session.
+type ClientEventBroadcaster interface {
+	Broadcast(ctx context.Context, event *ClientEventQuestionUpdated) error
+	Subscribe(ctx context.Context, sessionID string) (<-chan *ClientEventQuestionUpdated, error)
+}
+
+// ClientEventQuestionUpdated is the event type for when a question is updated in a session.
 // for simplicity, this is only type of event we handle in this example.
-type EventQuestionUpdated struct {
+type ClientEventQuestionUpdated struct {
 	SessionID string
 	Timestamp time.Time
 
 	// payloads
 	Questions    []*entity.Question
 	Participants []*entity.Participant
-}
-
-type BroadcastHandler interface {
-	Broadcast(ctx context.Context, event *EventQuestionUpdated) error
-	Subscribe(ctx context.Context, sessionID string) (<-chan *EventQuestionUpdated, error)
 }
 
 func (a *Application) NewSession(ctx context.Context, name string) (*entity.Session, error) {
@@ -119,14 +119,14 @@ func (a *Application) SubmitQuestion(ctx context.Context, sessionID, text, nickn
 		a.logger.ErrorContext(ctx, "Failed to fetch updated questions", "error", err)
 		return nil, err
 	}
-	event := &EventQuestionUpdated{
+	event := &ClientEventQuestionUpdated{
 		SessionID: sessionID,
 		Timestamp: time.Now(),
 
 		Questions:    questions,
 		Participants: nil, // Assuming we don't track participants in this example
 	}
-	err = a.sessionEventBus.Broadcast(ctx, event)
+	err = a.clientEventBroadcaster.Broadcast(ctx, event)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "Failed to publish question submitted event", "error", err)
 	}
@@ -134,8 +134,8 @@ func (a *Application) SubmitQuestion(ctx context.Context, sessionID, text, nickn
 	return question, nil
 }
 
-// SubscribeToQuestionUpdatedEvents subscribes to session events.
-func (a *Application) SubscribeToQuestionUpdatedEvents(ctx context.Context, sessionID string) (<-chan *EventQuestionUpdated, error) {
+// SubscribeToClientEvent subscribes to session events.
+func (a *Application) SubscribeToClientEvent(ctx context.Context, sessionID string) (<-chan *ClientEventQuestionUpdated, error) {
 	a.logger.DebugContext(ctx, "Subscribing to session events", "session_id", sessionID)
-	return a.sessionEventBus.Subscribe(ctx, sessionID)
+	return a.clientEventBroadcaster.Subscribe(ctx, sessionID)
 }

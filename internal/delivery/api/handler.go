@@ -134,7 +134,7 @@ func HandlerWebSocketSession(app *usecase.Application) gin.HandlerFunc {
 		ctx, cancel := context.WithCancel(c.Request.Context())
 		defer cancel()
 
-		eventCh, _ := app.SubscribeToQuestionUpdatedEvents(ctx, sessionID)
+		eventCh, _ := app.SubscribeToClientEvent(ctx, sessionID)
 		//defer unsubscribe()
 
 		pongWait := 60 * time.Second

@@ -8,17 +8,17 @@ import (
 
 type MemoryEventBus struct {
 	mu          sync.RWMutex
-	subscribers map[string][]chan *usecase.EventQuestionUpdated
+	subscribers map[string][]chan *usecase.ClientEventQuestionUpdated
 }
 
 func NewInMemorySessionEventBroker() *MemoryEventBus {
 	return &MemoryEventBus{
-		subscribers: make(map[string][]chan *usecase.EventQuestionUpdated),
+		subscribers: make(map[string][]chan *usecase.ClientEventQuestionUpdated),
 	}
 }
 
 // Broadcast sends the event to all subscribers of the given session ID.
-func (b *MemoryEventBus) Broadcast(ctx context.Context, event *usecase.EventQuestionUpdated) error {
+func (b *MemoryEventBus) Broadcast(ctx context.Context, event *usecase.ClientEventQuestionUpdated) error {
 	b.mu.RLock()
 	chs := b.subscribers[event.SessionID]
 	b.mu.RUnlock()
@@ -33,8 +33,8 @@ func (b *MemoryEventBus) Broadcast(ctx context.Context, event *usecase.EventQues
 	}
 	return nil
 }
-func (b *MemoryEventBus) Subscribe(ctx context.Context, sessionID string) (<-chan *usecase.EventQuestionUpdated, error) {
-	ch := make(chan *usecase.EventQuestionUpdated, 16)
+func (b *MemoryEventBus) Subscribe(ctx context.Context, sessionID string) (<-chan *usecase.ClientEventQuestionUpdated, error) {
+	ch := make(chan *usecase.ClientEventQuestionUpdated, 16)
 	b.mu.Lock()
 	b.subscribers[sessionID] = append(b.subscribers[sessionID], ch)
 	b.mu.Unlock()
