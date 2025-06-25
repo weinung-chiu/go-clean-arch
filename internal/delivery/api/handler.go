@@ -202,7 +202,7 @@ func HandlerUpvoteQuestion(app *usecase.Application) gin.HandlerFunc {
 			return
 		}
 		// Upvote the question by ID only (no sessionID needed)
-		err := app.UpvoteQuestionByQuestionID(c.Request.Context(), questionID, req.ParticipantID, req.ParticipantNickname)
+		err := app.UpvoteQuestion(c.Request.Context(), questionID, req.ParticipantID, req.ParticipantNickname)
 		if err != nil {
 			respondWithError(c, err)
 			return

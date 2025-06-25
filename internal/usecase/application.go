@@ -101,6 +101,7 @@ func (a *Application) GetSession(ctx context.Context, sessionID string) (*entity
 }
 
 // SubmitQuestion creates a new question for a session.
+// TODO: should pass *entity.Participant instead of nickname
 func (a *Application) SubmitQuestion(ctx context.Context, sessionID, text, nickname string) (*entity.Question, error) {
 	question := &entity.Question{
 		ID:             uuid.NewString(),
@@ -141,8 +142,9 @@ func (a *Application) SubscribeToClientEvent(ctx context.Context, sessionID stri
 	return a.clientEventBroadcaster.Subscribe(ctx, sessionID)
 }
 
-// UpvoteQuestionByQuestionID Upvote a question by its ID only (no sessionID required)
-func (a *Application) UpvoteQuestionByQuestionID(ctx context.Context, questionID, participantID, participantNickname string) error {
+// UpvoteQuestion Upvote a question by its ID only (no sessionID required)
+// TODO: should pass *entity.Participant instead of nickname
+func (a *Application) UpvoteQuestion(ctx context.Context, questionID, participantID, participantNickname string) error {
 	success, err := a.questionRepo.UpvoteQuestionByID(ctx, questionID, participantID, participantNickname)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "Failed to upvote question by ID", "error", err)
