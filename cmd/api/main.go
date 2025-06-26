@@ -47,10 +47,7 @@ func main() {
 	rootLogger := slog.New(logger.NewSimpleHandler(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel})))
 	rootLogger = rootLogger.With("service", AppName, "build", AppBuild)
 
-	// Initialize repositories
-	memSessionRepo := adapter.NewMemorySessionRepo()
-	memQuestionRepo := adapter.NewMemoryQuestionRepo()
-	memParticipantRepo := adapter.NewMemoryParticipantRepo()
+	memRepo := adapter.NewMemoryRepo()
 
 	// TODO: handle default value in config loader
 	// Initialize JWT auth service
@@ -71,9 +68,9 @@ func main() {
 
 	app, err := usecase.NewApplication(usecase.NewApplicationParams{
 		Logger:          rootLogger,
-		SessionRepo:     memSessionRepo,
-		QuestionRepo:    memQuestionRepo,
-		ParticipantRepo: memParticipantRepo,
+		SessionRepo:     memRepo,
+		QuestionRepo:    memRepo,
+		ParticipantRepo: memRepo,
 		AuthServer:      jwtAuthService,
 	})
 	if err != nil {
