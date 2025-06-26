@@ -3,12 +3,15 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
+	"go-clean-arch/internal/entity"
 	"go-clean-arch/internal/usecase"
 	"log"
 	"net/http"
+	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 )
 
 func respondWithError(c *gin.Context, err error) {
@@ -94,15 +97,24 @@ func HandlerGetSession(app *usecase.Application) gin.HandlerFunc {
 func HandlerSubmitQuestion(app *usecase.Application) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessionID := c.Param("id")
+
+		// Get authenticated participant from context
+		participantInterface, exists := c.Get("participant")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, SessionAPIResp{Error: "Authentication required"})
+			return
+		}
+		participant := participantInterface.(*entity.Participant)
+
 		var req struct {
-			Text     string `json:"text"`
-			Nickname string `json:"nickname"`
+			Text string `json:"text"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, SessionAPIResp{Error: "invalid request body"})
 			return
 		}
-		question, err := app.SubmitQuestion(c.Request.Context(), sessionID, req.Text, req.Nickname)
+
+		question, err := app.SubmitQuestion(c.Request.Context(), sessionID, req.Text, participant.Nickname)
 		if err != nil {
 			respondWithError(c, err)
 			return
@@ -194,22 +206,135 @@ func HandlerWebSocketSession(app *usecase.Application) gin.HandlerFunc {
 func HandlerUpvoteQuestion(app *usecase.Application) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		questionID := c.Param("id")
-		var req struct {
-			ParticipantID       string `json:"participant_id"`
-			ParticipantNickname string `json:"nickname"`
-		}
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, SessionAPIResp{Error: "invalid request body"})
+
+		// Get authenticated participant from context
+		participantInterface, exists := c.Get("participant")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, SessionAPIResp{Error: "Authentication required"})
 			return
 		}
-		// Upvote the question by ID only (no sessionID needed)
-		err := app.UpvoteQuestion(c.Request.Context(), questionID, req.ParticipantID, req.ParticipantNickname)
+		participant := participantInterface.(*entity.Participant)
+
+		err := app.UpvoteQuestion(c.Request.Context(), questionID, participant.ID, participant.Nickname)
 		if err != nil {
 			respondWithError(c, err)
 			return
 		}
+		c.JSON(http.StatusOK, SessionAPIResp{Data: gin.H{"message": "Question upvoted successfully"}})
+	}
+}
 
-		// we will broadcast the updated session via broadcast mechanism
-		c.JSON(http.StatusOK, nil)
+// AuthMiddleware validates JWT tokens and adds participant to context
+func AuthMiddleware(app *usecase.Application) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, SessionAPIResp{Error: "Authorization header required"})
+			c.Abort()
+			return
+		}
+
+		// Extract token from "Bearer <token>"
+		tokenParts := strings.Split(authHeader, " ")
+		if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
+			c.JSON(http.StatusUnauthorized, SessionAPIResp{Error: "Invalid authorization header format"})
+			c.Abort()
+			return
+		}
+
+		tokenString := tokenParts[1]
+		participant, err := app.ValidateParticipantToken(c.Request.Context(), tokenString)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, SessionAPIResp{Error: "Invalid or expired token"})
+			c.Abort()
+			return
+		}
+
+		// Add participant to context
+		c.Set("participant", participant)
+		c.Next()
+	}
+}
+
+// HandlerRegister handles POST /sessions/:id/register
+func HandlerRegister(app *usecase.Application) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sessionID := c.Param("id")
+
+		var req RegisterRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, SessionAPIResp{Error: "Invalid request body"})
+			return
+		}
+
+		token, err := app.RegisterParticipant(c.Request.Context(), sessionID, req.Nickname)
+		if err != nil {
+			if err == usecase.ErrNicknameAlreadyTaken {
+				c.JSON(http.StatusConflict, SessionAPIResp{Error: "Nickname already taken in this session"})
+				return
+			}
+			respondWithError(c, err)
+			return
+		}
+
+		c.JSON(http.StatusCreated, SessionAPIResp{Data: AuthResponse{
+			Token:         token.Token,
+			ExpiresAt:     token.ExpiresAt,
+			ParticipantID: token.ParticipantID,
+			Nickname:      req.Nickname,
+			SessionID:     sessionID,
+		}})
+	}
+}
+
+// HandlerLogin handles POST /sessions/:id/login
+func HandlerLogin(app *usecase.Application) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sessionID := c.Param("id")
+
+		var req LoginRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, SessionAPIResp{Error: "Invalid request body"})
+			return
+		}
+
+		token, err := app.LoginParticipant(c.Request.Context(), sessionID, req.Nickname)
+		if err != nil {
+			if err == usecase.ErrParticipantNotFound {
+				c.JSON(http.StatusNotFound, SessionAPIResp{Error: "Participant not found"})
+				return
+			}
+			respondWithError(c, err)
+			return
+		}
+
+		c.JSON(http.StatusOK, SessionAPIResp{Data: AuthResponse{
+			Token:         token.Token,
+			ExpiresAt:     token.ExpiresAt,
+			ParticipantID: token.ParticipantID,
+			Nickname:      req.Nickname,
+			SessionID:     sessionID,
+		}})
+	}
+}
+
+// HandlerGetProfile handles GET /auth/profile (requires authentication)
+func HandlerGetProfile(app *usecase.Application) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		participantInterface, exists := c.Get("participant")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, SessionAPIResp{Error: "Authentication required"})
+			return
+		}
+
+		participant := participantInterface.(*entity.Participant)
+		c.JSON(http.StatusOK, SessionAPIResp{Data: Participant{
+			ID:               participant.ID,
+			SessionID:        participant.SessionID,
+			Nickname:         participant.Nickname,
+			UpvotedQuestions: participant.UpvotedQuestions,
+			CreatedAt:        participant.CreatedAt,
+			LastSeenAt:       participant.LastSeenAt,
+		}})
 	}
 }

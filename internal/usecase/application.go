@@ -2,16 +2,27 @@ package usecase
 
 import (
 	"context"
-	"github.com/google/uuid"
+	"errors"
 	"go-clean-arch/internal/entity"
 	"log/slog"
 	"time"
+
+	"github.com/google/uuid"
+)
+
+// Domain-specific errors
+var (
+	ErrNicknameAlreadyTaken = errors.New("nickname already taken in this session")
+	ErrParticipantNotFound  = errors.New("participant not found")
+	ErrInvalidToken         = errors.New("invalid or expired token")
 )
 
 type Application struct {
 	logger                 *slog.Logger
 	sessionRepo            SessionRepository
 	questionRepo           QuestionRepository
+	participantRepo        ParticipantRepository
+	authService            AuthService
 	clientEventBroadcaster ClientEventBroadcaster
 }
 
@@ -20,14 +31,18 @@ func NewApplication(params NewApplicationParams) (*Application, error) {
 		logger:                 params.Logger.With("component", "application"),
 		sessionRepo:            params.SessionRepo,
 		questionRepo:           params.QuestionRepo,
+		participantRepo:        params.ParticipantRepo,
+		authService:            params.AuthService,
 		clientEventBroadcaster: newClientEventBroadcaster(),
 	}, nil
 }
 
 type NewApplicationParams struct {
-	Logger       *slog.Logger
-	SessionRepo  SessionRepository
-	QuestionRepo QuestionRepository
+	Logger          *slog.Logger
+	SessionRepo     SessionRepository
+	QuestionRepo    QuestionRepository
+	ParticipantRepo ParticipantRepository
+	AuthService     AuthService
 }
 
 type SessionRepository interface {
@@ -42,6 +57,25 @@ type QuestionRepository interface {
 	ListQuestionsBySession(ctx context.Context, sessionID string) ([]*entity.Question, error)
 	GetQuestionByID(ctx context.Context, questionID string) (*entity.Question, error)
 	UpvoteQuestionByID(ctx context.Context, questionID, participantID, participantNickname string) (bool, error)
+}
+
+type ParticipantRepository interface {
+	CreateParticipant(ctx context.Context, participant *entity.Participant) error
+	GetParticipant(ctx context.Context, filter ParticipantFilter) (*entity.Participant, error)
+	UpdateParticipantLastSeen(ctx context.Context, participantID string) error
+	ListParticipants(ctx context.Context, filter ParticipantFilter) ([]*entity.Participant, error)
+}
+
+// ParticipantFilter defines the criteria for filtering participants
+type ParticipantFilter struct {
+	ID        *string
+	SessionID *string
+	Nickname  *string
+}
+
+type AuthService interface {
+	GenerateToken(ctx context.Context, participant *entity.Participant) (*entity.AuthToken, error)
+	ValidateToken(ctx context.Context, tokenString string) (*entity.AuthClaims, error)
 }
 
 type ClientEventBroadcaster interface {
@@ -170,4 +204,110 @@ func (a *Application) UpvoteQuestion(ctx context.Context, questionID, participan
 	}
 	_ = a.clientEventBroadcaster.Broadcast(ctx, event)
 	return nil
+}
+
+// RegisterParticipant creates a new participant and returns an auth token
+func (a *Application) RegisterParticipant(ctx context.Context, sessionID, nickname string) (*entity.AuthToken, error) {
+	a.logger.DebugContext(ctx, "Registering new participant", "session_id", sessionID, "nickname", nickname)
+
+	// Check if session exists
+	_, err := a.sessionRepo.GetSessionByID(ctx, sessionID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "Failed to get session", "error", err)
+		return nil, err
+	}
+
+	// Check if nickname is already taken in this session
+	existingParticipant, err := a.participantRepo.GetParticipant(ctx, ParticipantFilter{
+		SessionID: &sessionID,
+		Nickname:  &nickname,
+	})
+	if err == nil && existingParticipant != nil {
+		return nil, ErrNicknameAlreadyTaken
+	}
+
+	// Create new participant
+	participant := &entity.Participant{
+		ID:               uuid.NewString(),
+		SessionID:        sessionID,
+		Nickname:         nickname,
+		UpvotedQuestions: make(map[string]bool),
+		CreatedAt:        time.Now(),
+		LastSeenAt:       time.Now(),
+	}
+
+	if err := a.participantRepo.CreateParticipant(ctx, participant); err != nil {
+		a.logger.ErrorContext(ctx, "Failed to create participant", "error", err)
+		return nil, err
+	}
+
+	// Generate auth token
+	token, err := a.authService.GenerateToken(ctx, participant)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "Failed to generate token", "error", err)
+		return nil, err
+	}
+
+	a.logger.InfoContext(ctx, "New participant registered", "participant_id", participant.ID, "session_id", sessionID)
+
+	return token, nil
+}
+
+// LoginParticipant authenticates an existing participant and returns a new token
+func (a *Application) LoginParticipant(ctx context.Context, sessionID, nickname string) (*entity.AuthToken, error) {
+	a.logger.DebugContext(ctx, "Logging in participant", "session_id", sessionID, "nickname", nickname)
+
+	// Find existing participant
+	participant, err := a.participantRepo.GetParticipant(ctx, ParticipantFilter{
+		SessionID: &sessionID,
+		Nickname:  &nickname,
+	})
+	if err != nil {
+		a.logger.ErrorContext(ctx, "Failed to get participant", "error", err)
+		return nil, ErrParticipantNotFound
+	}
+
+	// Update last seen
+	if err := a.participantRepo.UpdateParticipantLastSeen(ctx, participant.ID); err != nil {
+		a.logger.WarnContext(ctx, "Failed to update last seen", "error", err)
+	}
+
+	// Generate new token
+	token, err := a.authService.GenerateToken(ctx, participant)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "Failed to generate token", "error", err)
+		return nil, err
+	}
+
+	a.logger.InfoContext(ctx, "Participant logged in", "participant_id", participant.ID, "session_id", sessionID)
+
+	return token, nil
+}
+
+// ValidateParticipantToken validates a token and returns the participant
+func (a *Application) ValidateParticipantToken(ctx context.Context, tokenString string) (*entity.Participant, error) {
+	a.logger.DebugContext(ctx, "Validating participant token")
+
+	// Validate token
+	claims, err := a.authService.ValidateToken(ctx, tokenString)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "Failed to validate token", "error", err)
+		return nil, ErrInvalidToken
+	}
+
+	// Get participant from repository
+	participant, err := a.participantRepo.GetParticipant(ctx, ParticipantFilter{
+		ID: &claims.ParticipantID,
+	})
+	if err != nil {
+		a.logger.ErrorContext(ctx, "Failed to get participant", "error", err)
+		return nil, ErrParticipantNotFound
+	}
+
+	// Update last seen
+	if err := a.participantRepo.UpdateParticipantLastSeen(ctx, participant.ID); err != nil {
+		a.logger.WarnContext(ctx, "Failed to update last seen", "error", err)
+	}
+
+	return participant, nil
 }

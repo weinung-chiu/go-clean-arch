@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"go-clean-arch/internal/adapter"
 	"go-clean-arch/internal/config"
 	"go-clean-arch/internal/delivery/api"
@@ -14,6 +12,10 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 var (
@@ -45,13 +47,34 @@ func main() {
 	rootLogger := slog.New(logger.NewSimpleHandler(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel})))
 	rootLogger = rootLogger.With("service", AppName, "build", AppBuild)
 
+	// Initialize repositories
 	memSessionRepo := adapter.NewMemorySessionRepo()
 	memQuestionRepo := adapter.NewMemoryQuestionRepo()
+	memParticipantRepo := adapter.NewMemoryParticipantRepo()
+
+	// TODO: handle this in config loader
+	// Initialize JWT auth service
+	if cfg.JWTSecret == "" {
+		cfg.JWTSecret = "default-secret-key-change-in-production"
+		rootLogger.Warn("Using default JWT secret key. Set JWT_SECRET environment variable in production.")
+	}
+
+	if cfg.JWTExpiry == 0 {
+		cfg.JWTExpiry = 1440 // Default to 24 hours (1440 minutes)
+	}
+
+	jwtAuthService := adapter.NewJWTAuthService(
+		rootLogger,
+		cfg.JWTSecret,
+		time.Duration(cfg.JWTExpiry)*time.Minute,
+	)
 
 	app, err := usecase.NewApplication(usecase.NewApplicationParams{
-		Logger:       rootLogger,
-		SessionRepo:  memSessionRepo,
-		QuestionRepo: memQuestionRepo,
+		Logger:          rootLogger,
+		SessionRepo:     memSessionRepo,
+		QuestionRepo:    memQuestionRepo,
+		ParticipantRepo: memParticipantRepo,
+		AuthService:     jwtAuthService,
 	})
 	if err != nil {
 		rootLogger.Error("Failed to create application", "error", err)

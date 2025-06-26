@@ -81,4 +81,31 @@ type Participant struct {
 	// UpvotedQuestions 儲存了這位參與者已經「附議」過的問題 ID 集合。
 	// Map 的鍵是問題 ID，布林值 true 代表存在於集合中。
 	UpvotedQuestions map[string]bool
+
+	// CreatedAt is the timestamp when the participant was created.
+	// CreatedAt 是參與者被創建時的時間戳。
+	CreatedAt time.Time
+
+	// LastSeenAt is the timestamp when the participant was last active.
+	// LastSeenAt 是參與者最後活躍的時間戳。
+	LastSeenAt time.Time
+}
+
+// AuthToken represents a JWT token for participant authentication
+type AuthToken struct {
+	// Token is the JWT string
+	Token string `json:"token"`
+
+	// ExpiresAt is when the token expires
+	ExpiresAt time.Time `json:"expires_at"`
+
+	// ParticipantID is the ID of the participant this token belongs to
+	ParticipantID string `json:"participant_id"`
+}
+
+// AuthClaims represents the claims in a JWT token
+type AuthClaims struct {
+	ParticipantID string `json:"participant_id"`
+	SessionID     string `json:"session_id"`
+	Nickname      string `json:"nickname"`
 }
