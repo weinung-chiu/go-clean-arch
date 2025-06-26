@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"errors"
 	"go-clean-arch/internal/entity"
 	"log/slog"
 	"time"
@@ -12,19 +11,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// Domain-specific errors
-var (
-	ErrNicknameAlreadyTaken = errors.New("nickname already taken in this session")
-	ErrParticipantNotFound  = errors.New("participant not found")
-	ErrInvalidToken         = errors.New("invalid or expired token")
-)
-
 type Application struct {
 	logger                 *slog.Logger
 	sessionRepo            SessionRepository
 	questionRepo           QuestionRepository
 	participantRepo        ParticipantRepository
-	clientEventBroadcaster ClientEventBroadcaster
+	clientEventBroadcaster *clientEventBroadcaster
 
 	AuthService *auth.Service
 }
@@ -45,49 +37,7 @@ type NewApplicationParams struct {
 	SessionRepo     SessionRepository
 	QuestionRepo    QuestionRepository
 	ParticipantRepo ParticipantRepository
-	AuthServer      AuthServer
-}
-
-type SessionRepository interface {
-	CreateSession(ctx context.Context, session *entity.Session) error
-	GetSessionByID(ctx context.Context, sessionID string) (*entity.Session, error)
-	AddParticipantToSession(ctx context.Context, sessionID string, participant *entity.Participant) error
-	ListSessions(ctx context.Context) ([]*entity.Session, error)
-}
-
-type QuestionRepository interface {
-	CreateQuestion(ctx context.Context, question *entity.Question) error
-	ListQuestionsBySession(ctx context.Context, sessionID string) ([]*entity.Question, error)
-	GetQuestionByID(ctx context.Context, questionID string) (*entity.Question, error)
-	UpvoteQuestionByID(ctx context.Context, questionID, participantID, participantNickname string) (bool, error)
-}
-
-type ParticipantRepository interface {
-	CreateParticipant(ctx context.Context, participant *entity.Participant) error
-	GetParticipant(ctx context.Context, filter entity.ParticipantFilter) (*entity.Participant, error)
-	UpdateParticipantLastSeen(ctx context.Context, participantID string) error
-	ListParticipants(ctx context.Context, filter entity.ParticipantFilter) ([]*entity.Participant, error)
-}
-
-type AuthServer interface {
-	GenerateToken(ctx context.Context, participant *entity.Participant) (*entity.AuthToken, error)
-	ValidateToken(ctx context.Context, tokenString string) (*entity.AuthClaims, error)
-}
-
-type ClientEventBroadcaster interface {
-	Broadcast(ctx context.Context, event *ClientEventQuestionUpdated) error
-	Subscribe(ctx context.Context, sessionID string) (<-chan *ClientEventQuestionUpdated, error)
-}
-
-// ClientEventQuestionUpdated is the event type for when a question is updated in a session.
-// for simplicity, this is only type of event we handle in this example.
-type ClientEventQuestionUpdated struct {
-	SessionID string
-	Timestamp time.Time
-
-	// payloads
-	Questions    []*entity.Question
-	Participants []*entity.Participant
+	AuthServer      auth.AuthServer
 }
 
 func (a *Application) NewSession(ctx context.Context, name string) (*entity.Session, error) {
@@ -166,12 +116,6 @@ func (a *Application) SubmitQuestion(ctx context.Context, sessionID, text, nickn
 	return question, nil
 }
 
-// SubscribeToClientEvent subscribes to session events.
-func (a *Application) SubscribeToClientEvent(ctx context.Context, sessionID string) (<-chan *ClientEventQuestionUpdated, error) {
-	a.logger.DebugContext(ctx, "Subscribing to session events", "session_id", sessionID)
-	return a.clientEventBroadcaster.Subscribe(ctx, sessionID)
-}
-
 // UpvoteQuestion Upvote a question by its ID only (no sessionID required)
 // TODO: should pass *entity.Participant instead of nickname
 func (a *Application) UpvoteQuestion(ctx context.Context, questionID, participantID, participantNickname string) error {
@@ -200,4 +144,21 @@ func (a *Application) UpvoteQuestion(ctx context.Context, questionID, participan
 	}
 	_ = a.clientEventBroadcaster.Broadcast(ctx, event)
 	return nil
+}
+
+// ClientEventQuestionUpdated is the event type for when a question is updated in a session.
+// for simplicity, this is only type of event we handle in this example.
+type ClientEventQuestionUpdated struct {
+	SessionID string
+	Timestamp time.Time
+
+	// payloads
+	Questions    []*entity.Question
+	Participants []*entity.Participant
+}
+
+// SubscribeToClientEvent subscribes to session events.
+func (a *Application) SubscribeToClientEvent(ctx context.Context, sessionID string) (<-chan *ClientEventQuestionUpdated, error) {
+	a.logger.DebugContext(ctx, "Subscribing to session events", "session_id", sessionID)
+	return a.clientEventBroadcaster.Subscribe(ctx, sessionID)
 }

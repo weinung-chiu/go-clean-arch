@@ -52,7 +52,7 @@ func main() {
 	memQuestionRepo := adapter.NewMemoryQuestionRepo()
 	memParticipantRepo := adapter.NewMemoryParticipantRepo()
 
-	// TODO: handle this in config loader
+	// TODO: handle default value in config loader
 	// Initialize JWT auth service
 	if cfg.JWTSecret == "" {
 		cfg.JWTSecret = "default-secret-key-change-in-production"
