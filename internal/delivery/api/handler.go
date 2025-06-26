@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"go-clean-arch/internal/entity"
 	"go-clean-arch/internal/usecase"
+	"go-clean-arch/internal/usecase/service/auth"
 	"log"
 	"net/http"
 	"strings"
@@ -243,7 +244,7 @@ func AuthMiddleware(app *usecase.Application) gin.HandlerFunc {
 		}
 
 		tokenString := tokenParts[1]
-		participant, err := app.ValidateParticipantToken(c.Request.Context(), tokenString)
+		participant, err := app.AuthService.ValidateParticipantToken(c.Request.Context(), tokenString)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, SessionAPIResp{Error: "Invalid or expired token"})
 			c.Abort()
@@ -267,9 +268,9 @@ func HandlerRegister(app *usecase.Application) gin.HandlerFunc {
 			return
 		}
 
-		token, err := app.RegisterParticipant(c.Request.Context(), sessionID, req.Nickname)
+		token, err := app.AuthService.RegisterParticipant(c.Request.Context(), sessionID, req.Nickname)
 		if err != nil {
-			if err == usecase.ErrNicknameAlreadyTaken {
+			if err.Error() == auth.ErrNicknameAlreadyTaken {
 				c.JSON(http.StatusConflict, SessionAPIResp{Error: "Nickname already taken in this session"})
 				return
 			}
@@ -298,9 +299,9 @@ func HandlerLogin(app *usecase.Application) gin.HandlerFunc {
 			return
 		}
 
-		token, err := app.LoginParticipant(c.Request.Context(), sessionID, req.Nickname)
+		token, err := app.AuthService.LoginParticipant(c.Request.Context(), sessionID, req.Nickname)
 		if err != nil {
-			if err == usecase.ErrParticipantNotFound {
+			if err.Error() == auth.ErrParticipantNotFound {
 				c.JSON(http.StatusNotFound, SessionAPIResp{Error: "Participant not found"})
 				return
 			}

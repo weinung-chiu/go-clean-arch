@@ -109,3 +109,10 @@ type AuthClaims struct {
 	SessionID     string `json:"session_id"`
 	Nickname      string `json:"nickname"`
 }
+
+// ParticipantFilter defines the criteria for filtering participants
+type ParticipantFilter struct {
+	ID        *string
+	SessionID *string
+	Nickname  *string
+}

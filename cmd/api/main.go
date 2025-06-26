@@ -74,7 +74,7 @@ func main() {
 		SessionRepo:     memSessionRepo,
 		QuestionRepo:    memQuestionRepo,
 		ParticipantRepo: memParticipantRepo,
-		AuthService:     jwtAuthService,
+		AuthServer:      jwtAuthService,
 	})
 	if err != nil {
 		rootLogger.Error("Failed to create application", "error", err)

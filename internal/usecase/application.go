@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"time"
 
+	"go-clean-arch/internal/usecase/service/auth"
+
 	"github.com/google/uuid"
 )
 
@@ -22,8 +24,9 @@ type Application struct {
 	sessionRepo            SessionRepository
 	questionRepo           QuestionRepository
 	participantRepo        ParticipantRepository
-	authService            AuthService
 	clientEventBroadcaster ClientEventBroadcaster
+
+	AuthService *auth.Service
 }
 
 func NewApplication(params NewApplicationParams) (*Application, error) {
@@ -32,8 +35,8 @@ func NewApplication(params NewApplicationParams) (*Application, error) {
 		sessionRepo:            params.SessionRepo,
 		questionRepo:           params.QuestionRepo,
 		participantRepo:        params.ParticipantRepo,
-		authService:            params.AuthService,
 		clientEventBroadcaster: newClientEventBroadcaster(),
+		AuthService:            auth.NewAuthService(params.ParticipantRepo, params.SessionRepo, params.AuthServer),
 	}, nil
 }
 
@@ -42,7 +45,7 @@ type NewApplicationParams struct {
 	SessionRepo     SessionRepository
 	QuestionRepo    QuestionRepository
 	ParticipantRepo ParticipantRepository
-	AuthService     AuthService
+	AuthServer      AuthServer
 }
 
 type SessionRepository interface {
@@ -61,19 +64,12 @@ type QuestionRepository interface {
 
 type ParticipantRepository interface {
 	CreateParticipant(ctx context.Context, participant *entity.Participant) error
-	GetParticipant(ctx context.Context, filter ParticipantFilter) (*entity.Participant, error)
+	GetParticipant(ctx context.Context, filter entity.ParticipantFilter) (*entity.Participant, error)
 	UpdateParticipantLastSeen(ctx context.Context, participantID string) error
-	ListParticipants(ctx context.Context, filter ParticipantFilter) ([]*entity.Participant, error)
+	ListParticipants(ctx context.Context, filter entity.ParticipantFilter) ([]*entity.Participant, error)
 }
 
-// ParticipantFilter defines the criteria for filtering participants
-type ParticipantFilter struct {
-	ID        *string
-	SessionID *string
-	Nickname  *string
-}
-
-type AuthService interface {
+type AuthServer interface {
 	GenerateToken(ctx context.Context, participant *entity.Participant) (*entity.AuthToken, error)
 	ValidateToken(ctx context.Context, tokenString string) (*entity.AuthClaims, error)
 }
@@ -204,110 +200,4 @@ func (a *Application) UpvoteQuestion(ctx context.Context, questionID, participan
 	}
 	_ = a.clientEventBroadcaster.Broadcast(ctx, event)
 	return nil
-}
-
-// RegisterParticipant creates a new participant and returns an auth token
-func (a *Application) RegisterParticipant(ctx context.Context, sessionID, nickname string) (*entity.AuthToken, error) {
-	a.logger.DebugContext(ctx, "Registering new participant", "session_id", sessionID, "nickname", nickname)
-
-	// Check if session exists
-	_, err := a.sessionRepo.GetSessionByID(ctx, sessionID)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "Failed to get session", "error", err)
-		return nil, err
-	}
-
-	// Check if nickname is already taken in this session
-	existingParticipant, err := a.participantRepo.GetParticipant(ctx, ParticipantFilter{
-		SessionID: &sessionID,
-		Nickname:  &nickname,
-	})
-	if err == nil && existingParticipant != nil {
-		return nil, ErrNicknameAlreadyTaken
-	}
-
-	// Create new participant
-	participant := &entity.Participant{
-		ID:               uuid.NewString(),
-		SessionID:        sessionID,
-		Nickname:         nickname,
-		UpvotedQuestions: make(map[string]bool),
-		CreatedAt:        time.Now(),
-		LastSeenAt:       time.Now(),
-	}
-
-	if err := a.participantRepo.CreateParticipant(ctx, participant); err != nil {
-		a.logger.ErrorContext(ctx, "Failed to create participant", "error", err)
-		return nil, err
-	}
-
-	// Generate auth token
-	token, err := a.authService.GenerateToken(ctx, participant)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "Failed to generate token", "error", err)
-		return nil, err
-	}
-
-	a.logger.InfoContext(ctx, "New participant registered", "participant_id", participant.ID, "session_id", sessionID)
-
-	return token, nil
-}
-
-// LoginParticipant authenticates an existing participant and returns a new token
-func (a *Application) LoginParticipant(ctx context.Context, sessionID, nickname string) (*entity.AuthToken, error) {
-	a.logger.DebugContext(ctx, "Logging in participant", "session_id", sessionID, "nickname", nickname)
-
-	// Find existing participant
-	participant, err := a.participantRepo.GetParticipant(ctx, ParticipantFilter{
-		SessionID: &sessionID,
-		Nickname:  &nickname,
-	})
-	if err != nil {
-		a.logger.ErrorContext(ctx, "Failed to get participant", "error", err)
-		return nil, ErrParticipantNotFound
-	}
-
-	// Update last seen
-	if err := a.participantRepo.UpdateParticipantLastSeen(ctx, participant.ID); err != nil {
-		a.logger.WarnContext(ctx, "Failed to update last seen", "error", err)
-	}
-
-	// Generate new token
-	token, err := a.authService.GenerateToken(ctx, participant)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "Failed to generate token", "error", err)
-		return nil, err
-	}
-
-	a.logger.InfoContext(ctx, "Participant logged in", "participant_id", participant.ID, "session_id", sessionID)
-
-	return token, nil
-}
-
-// ValidateParticipantToken validates a token and returns the participant
-func (a *Application) ValidateParticipantToken(ctx context.Context, tokenString string) (*entity.Participant, error) {
-	a.logger.DebugContext(ctx, "Validating participant token")
-
-	// Validate token
-	claims, err := a.authService.ValidateToken(ctx, tokenString)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "Failed to validate token", "error", err)
-		return nil, ErrInvalidToken
-	}
-
-	// Get participant from repository
-	participant, err := a.participantRepo.GetParticipant(ctx, ParticipantFilter{
-		ID: &claims.ParticipantID,
-	})
-	if err != nil {
-		a.logger.ErrorContext(ctx, "Failed to get participant", "error", err)
-		return nil, ErrParticipantNotFound
-	}
-
-	// Update last seen
-	if err := a.participantRepo.UpdateParticipantLastSeen(ctx, participant.ID); err != nil {
-		a.logger.WarnContext(ctx, "Failed to update last seen", "error", err)
-	}
-
-	return participant, nil
 }

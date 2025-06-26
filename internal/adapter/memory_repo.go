@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"go-clean-arch/internal/entity"
-	"go-clean-arch/internal/usecase"
 	"sync"
 	"time"
 )
@@ -151,7 +150,7 @@ func (r *MemoryParticipantRepo) CreateParticipant(ctx context.Context, p *entity
 	return nil
 }
 
-func (r *MemoryParticipantRepo) GetParticipant(ctx context.Context, filter usecase.ParticipantFilter) (*entity.Participant, error) {
+func (r *MemoryParticipantRepo) GetParticipant(ctx context.Context, filter entity.ParticipantFilter) (*entity.Participant, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -198,7 +197,7 @@ func (r *MemoryParticipantRepo) GetParticipant(ctx context.Context, filter useca
 	return nil, ErrNotFound
 }
 
-func (r *MemoryParticipantRepo) ListParticipants(ctx context.Context, filter usecase.ParticipantFilter) ([]*entity.Participant, error) {
+func (r *MemoryParticipantRepo) ListParticipants(ctx context.Context, filter entity.ParticipantFilter) ([]*entity.Participant, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
