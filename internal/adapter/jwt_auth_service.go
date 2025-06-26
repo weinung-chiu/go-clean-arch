@@ -32,13 +32,11 @@ func (s *JWTAuthService) GenerateToken(ctx context.Context, participant *entity.
 
 	claims := &entity.AuthClaims{
 		ParticipantID: participant.ID,
-		SessionID:     participant.SessionID,
 		Nickname:      participant.Nickname,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"participant_id": claims.ParticipantID,
-		"session_id":     claims.SessionID,
 		"nickname":       claims.Nickname,
 		"exp":            expiresAt.Unix(),
 		"iat":            now.Unix(),
@@ -92,11 +90,6 @@ func (s *JWTAuthService) ValidateToken(ctx context.Context, tokenString string) 
 		return nil, fmt.Errorf("invalid participant_id claim")
 	}
 
-	sessionID, ok := claims["session_id"].(string)
-	if !ok {
-		return nil, fmt.Errorf("invalid session_id claim")
-	}
-
 	nickname, ok := claims["nickname"].(string)
 	if !ok {
 		return nil, fmt.Errorf("invalid nickname claim")
@@ -104,7 +97,6 @@ func (s *JWTAuthService) ValidateToken(ctx context.Context, tokenString string) 
 
 	return &entity.AuthClaims{
 		ParticipantID: participantID,
-		SessionID:     sessionID,
 		Nickname:      nickname,
 	}, nil
 }

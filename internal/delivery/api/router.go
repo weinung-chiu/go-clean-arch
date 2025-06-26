@@ -21,9 +21,10 @@ func RegisterRoutes(r *gin.Engine, app *usecase.Application) {
 	sessions.POST("/", HandlerNewSession(app))
 	sessions.GET(":id", HandlerGetSession(app))
 
-	// Session authentication routes (no auth required)
-	sessions.POST(":id/register", HandlerRegister(app))
-	sessions.POST(":id/login", HandlerLogin(app))
+	// Auth routes (no auth required)
+	auth := v1.Group("/auth")
+	auth.POST("/register", HandlerRegister(app))
+	auth.POST("/login", HandlerLogin(app))
 
 	// Protected routes (require authentication)
 	protected := v1.Group("/")

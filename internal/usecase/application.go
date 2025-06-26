@@ -36,7 +36,7 @@ func NewApplication(params NewApplicationParams) (*Application, error) {
 		questionRepo:           params.QuestionRepo,
 		participantRepo:        params.ParticipantRepo,
 		clientEventBroadcaster: newClientEventBroadcaster(),
-		AuthService:            auth.NewAuthService(params.ParticipantRepo, params.SessionRepo, params.AuthServer),
+		AuthService:            auth.NewAuthService(params.ParticipantRepo, params.AuthServer),
 	}, nil
 }
 

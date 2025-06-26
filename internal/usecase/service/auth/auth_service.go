@@ -11,7 +11,6 @@ import (
 
 type Service struct {
 	participantRepo ParticipantRepository
-	sessionRepo     SessionRepository
 	authServer      AuthServer
 }
 
@@ -21,38 +20,27 @@ type ParticipantRepository interface {
 	UpdateParticipantLastSeen(ctx context.Context, participantID string) error
 }
 
-type SessionRepository interface {
-	GetSessionByID(ctx context.Context, sessionID string) (*entity.Session, error)
-}
-
 type AuthServer interface {
 	GenerateToken(ctx context.Context, participant *entity.Participant) (*entity.AuthToken, error)
 	ValidateToken(ctx context.Context, tokenString string) (*entity.AuthClaims, error)
 }
 
 var (
-	ErrNicknameAlreadyTaken = "nickname already taken in this session"
+	ErrNicknameAlreadyTaken = "nickname already taken"
 	ErrParticipantNotFound  = "participant not found"
 	ErrInvalidToken         = "invalid or expired token"
 )
 
-func NewAuthService(participantRepo ParticipantRepository, sessionRepo SessionRepository, authServer AuthServer) *Service {
+func NewAuthService(participantRepo ParticipantRepository, authServer AuthServer) *Service {
 	return &Service{
 		participantRepo: participantRepo,
-		sessionRepo:     sessionRepo,
 		authServer:      authServer,
 	}
 }
 
-func (s *Service) RegisterParticipant(ctx context.Context, sessionID, nickname string) (*entity.AuthToken, error) {
-	_, err := s.sessionRepo.GetSessionByID(ctx, sessionID)
-	if err != nil {
-		return nil, err
-	}
-
+func (s *Service) RegisterParticipant(ctx context.Context, nickname string) (*entity.AuthToken, error) {
 	existingParticipant, err := s.participantRepo.GetParticipant(ctx, entity.ParticipantFilter{
-		SessionID: &sessionID,
-		Nickname:  &nickname,
+		Nickname: &nickname,
 	})
 	if err == nil && existingParticipant != nil {
 		return nil, errors.New(ErrNicknameAlreadyTaken)
@@ -60,7 +48,6 @@ func (s *Service) RegisterParticipant(ctx context.Context, sessionID, nickname s
 
 	participant := &entity.Participant{
 		ID:               uuid.NewString(),
-		SessionID:        sessionID,
 		Nickname:         nickname,
 		UpvotedQuestions: make(map[string]bool),
 		CreatedAt:        time.Now(),
@@ -79,10 +66,9 @@ func (s *Service) RegisterParticipant(ctx context.Context, sessionID, nickname s
 	return token, nil
 }
 
-func (s *Service) LoginParticipant(ctx context.Context, sessionID, nickname string) (*entity.AuthToken, error) {
+func (s *Service) LoginParticipant(ctx context.Context, nickname string) (*entity.AuthToken, error) {
 	participant, err := s.participantRepo.GetParticipant(ctx, entity.ParticipantFilter{
-		SessionID: &sessionID,
-		Nickname:  &nickname,
+		Nickname: &nickname,
 	})
 	if err != nil {
 		return nil, errors.New(ErrParticipantNotFound)

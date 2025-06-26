@@ -59,18 +59,12 @@ func (q *Question) String() string {
 	return fmt.Sprintf("[Partcipant: %s] %s", q.AuthorNickname, q.Text)
 }
 
-// Participant represents a user connected to a session.
-// In this model, a participant is ephemeral and tied to a connection.
-// Participant 代表一位連接到 Session 的使用者。在此模型中，參與者是暫時性的，並與一個連線綁定。
+// Participant represents a user in the system.
 type Participant struct {
-	// ID is the system's unique identifier for the participant (e.g., a WebSocket connection ID).
+	// ID is the system's unique identifier for the participant (e.g., a UUID).
 	// This is the primary key.
-	// ID 是系統中此 Participant 的唯一識別碼（例如 WebSocket 連線 ID），作為主鍵（Primary Key）。
+	// ID 是系統中此 Participant 的唯一識別碼（例如 UUID），作為主鍵（Primary Key）。
 	ID string
-
-	// SessionID is the foreign key linking this participant to a Session.
-	// SessionID 是將此參與者關聯到一個 Session 的外鍵（Foreign Key）。
-	SessionID string
 
 	// Nickname is the display name chosen by the participant.
 	// Nickname 是參與者選擇的顯示名稱。
@@ -106,13 +100,11 @@ type AuthToken struct {
 // AuthClaims represents the claims in a JWT token
 type AuthClaims struct {
 	ParticipantID string `json:"participant_id"`
-	SessionID     string `json:"session_id"`
 	Nickname      string `json:"nickname"`
 }
 
 // ParticipantFilter defines the criteria for filtering participants
 type ParticipantFilter struct {
-	ID        *string
-	SessionID *string
-	Nickname  *string
+	ID       *string
+	Nickname *string
 }

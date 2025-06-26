@@ -38,12 +38,10 @@ type AuthResponse struct {
 	ExpiresAt     time.Time `json:"expires_at"`
 	ParticipantID string    `json:"participant_id"`
 	Nickname      string    `json:"nickname"`
-	SessionID     string    `json:"session_id"`
 }
 
 type Participant struct {
 	ID               string          `json:"id"`
-	SessionID        string          `json:"session_id"`
 	Nickname         string          `json:"nickname"`
 	UpvotedQuestions map[string]bool `json:"upvoted_questions"`
 	CreatedAt        time.Time       `json:"created_at"`

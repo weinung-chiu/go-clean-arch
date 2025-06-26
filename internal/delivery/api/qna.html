@@ -315,7 +315,7 @@
 
         try {
             // Try to register first (new user)
-            let response = await fetch(`${apiBase}/sessions/${selectedSessionId}/register`, {
+            let response = await fetch(`${apiBase}/auth/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ nickname })
@@ -325,7 +325,7 @@
             
             if (!response.ok && data.error && data.error.includes('already taken')) {
                 // Nickname taken, try to login instead
-                response = await fetch(`${apiBase}/sessions/${selectedSessionId}/login`, {
+                response = await fetch(`${apiBase}/auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ nickname })
@@ -336,7 +336,6 @@
             if (response.ok) {
                 saveAuthState(data.data.token, {
                     nickname: data.data.nickname,
-                    sessionId: data.data.session_id,
                     participantId: data.data.participant_id,
                     expiresAt: data.data.expires_at
                 });
@@ -346,7 +345,8 @@
                 document.getElementById('join-error').textContent = data.error || 'Failed to join session';
             }
         } catch (error) {
-            document.getElementById('join-error').textContent = 'Network error: ' + error.message;
+            console.error('Error joining session:', error);
+            document.getElementById('join-error').textContent = 'Failed to connect to server';
         }
     }
 
@@ -369,7 +369,7 @@
         // Update user info display
         document.getElementById('current-nickname').textContent = currentUser.nickname;
         document.getElementById('user-nickname').textContent = currentUser.nickname;
-        document.getElementById('user-session').textContent = currentUser.sessionId;
+        document.getElementById('user-session').textContent = selectedSessionId;
         
         // Format expiry time more user-friendly
         const expiryDate = new Date(currentUser.expiresAt);
@@ -448,7 +448,7 @@
 
     async function loadSessionData() {
         try {
-            const response = await fetch(`${apiBase}/sessions/${currentUser.sessionId}`);
+            const response = await fetch(`${apiBase}/sessions/${selectedSessionId}`);
             const data = await response.json();
             
             const questions = (data.data && data.data.questions) || [];
@@ -458,7 +458,7 @@
         }
 
         document.getElementById('ws-messages-list').innerHTML = '';
-        connectWebSocket(currentUser.sessionId);
+        connectWebSocket(selectedSessionId);
     }
 
     // WebSocket management
@@ -558,7 +558,7 @@
             
             if (response.ok) {
                 // Refresh questions to show updated upvotes
-                const sessionResponse = await fetch(`${apiBase}/sessions/${currentUser.sessionId}`);
+                const sessionResponse = await fetch(`${apiBase}/sessions/${selectedSessionId}`);
                 const sessionData = await sessionResponse.json();
                 const questions = (sessionData.data && sessionData.data.questions) || [];
                 renderQuestions(questions);
@@ -579,7 +579,7 @@
         if (!text.trim()) return;
 
         try {
-            await authenticatedFetch(`${apiBase}/sessions/${currentUser.sessionId}/questions`, {
+            await authenticatedFetch(`${apiBase}/sessions/${selectedSessionId}/questions`, {
                 method: 'POST',
                 body: JSON.stringify({ text })
             });

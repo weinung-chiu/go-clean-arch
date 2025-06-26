@@ -257,21 +257,19 @@ func AuthMiddleware(app *usecase.Application) gin.HandlerFunc {
 	}
 }
 
-// HandlerRegister handles POST /sessions/:id/register
+// HandlerRegister handles POST /auth/register
 func HandlerRegister(app *usecase.Application) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		sessionID := c.Param("id")
-
 		var req RegisterRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, SessionAPIResp{Error: "Invalid request body"})
 			return
 		}
 
-		token, err := app.AuthService.RegisterParticipant(c.Request.Context(), sessionID, req.Nickname)
+		token, err := app.AuthService.RegisterParticipant(c.Request.Context(), req.Nickname)
 		if err != nil {
 			if err.Error() == auth.ErrNicknameAlreadyTaken {
-				c.JSON(http.StatusConflict, SessionAPIResp{Error: "Nickname already taken in this session"})
+				c.JSON(http.StatusConflict, SessionAPIResp{Error: "Nickname already taken"})
 				return
 			}
 			respondWithError(c, err)
@@ -283,23 +281,20 @@ func HandlerRegister(app *usecase.Application) gin.HandlerFunc {
 			ExpiresAt:     token.ExpiresAt,
 			ParticipantID: token.ParticipantID,
 			Nickname:      req.Nickname,
-			SessionID:     sessionID,
 		}})
 	}
 }
 
-// HandlerLogin handles POST /sessions/:id/login
+// HandlerLogin handles POST /auth/login
 func HandlerLogin(app *usecase.Application) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		sessionID := c.Param("id")
-
 		var req LoginRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, SessionAPIResp{Error: "Invalid request body"})
 			return
 		}
 
-		token, err := app.AuthService.LoginParticipant(c.Request.Context(), sessionID, req.Nickname)
+		token, err := app.AuthService.LoginParticipant(c.Request.Context(), req.Nickname)
 		if err != nil {
 			if err.Error() == auth.ErrParticipantNotFound {
 				c.JSON(http.StatusNotFound, SessionAPIResp{Error: "Participant not found"})
@@ -314,7 +309,6 @@ func HandlerLogin(app *usecase.Application) gin.HandlerFunc {
 			ExpiresAt:     token.ExpiresAt,
 			ParticipantID: token.ParticipantID,
 			Nickname:      req.Nickname,
-			SessionID:     sessionID,
 		}})
 	}
 }
@@ -331,7 +325,6 @@ func HandlerGetProfile(app *usecase.Application) gin.HandlerFunc {
 		participant := participantInterface.(*entity.Participant)
 		c.JSON(http.StatusOK, SessionAPIResp{Data: Participant{
 			ID:               participant.ID,
-			SessionID:        participant.SessionID,
 			Nickname:         participant.Nickname,
 			UpvotedQuestions: participant.UpvotedQuestions,
 			CreatedAt:        participant.CreatedAt,

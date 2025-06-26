@@ -119,14 +119,14 @@ func (r *MemoryQuestionRepo) UpvoteQuestionByID(ctx context.Context, questionID,
 
 type MemoryParticipantRepo struct {
 	mu           sync.RWMutex
-	participants map[string]map[string]*entity.Participant // sessionID -> participantID -> participant
-	byNickname   map[string]map[string]*entity.Participant // sessionID -> nickname -> participant
+	participants map[string]*entity.Participant // participantID -> participant
+	byNickname   map[string]*entity.Participant // nickname -> participant
 }
 
 func NewMemoryParticipantRepo() *MemoryParticipantRepo {
 	return &MemoryParticipantRepo{
-		participants: make(map[string]map[string]*entity.Participant),
-		byNickname:   make(map[string]map[string]*entity.Participant),
+		participants: make(map[string]*entity.Participant),
+		byNickname:   make(map[string]*entity.Participant),
 	}
 }
 
@@ -134,18 +134,15 @@ func (r *MemoryParticipantRepo) CreateParticipant(ctx context.Context, p *entity
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// Initialize maps if they don't exist
-	if r.participants[p.SessionID] == nil {
-		r.participants[p.SessionID] = make(map[string]*entity.Participant)
-	}
-	if r.byNickname[p.SessionID] == nil {
-		r.byNickname[p.SessionID] = make(map[string]*entity.Participant)
+	// Check if nickname already exists
+	if _, exists := r.byNickname[p.Nickname]; exists {
+		return errors.New("nickname already taken")
 	}
 
 	// Store by ID
-	r.participants[p.SessionID][p.ID] = p
+	r.participants[p.ID] = p
 	// Store by nickname
-	r.byNickname[p.SessionID][p.Nickname] = p
+	r.byNickname[p.Nickname] = p
 
 	return nil
 }
@@ -156,40 +153,16 @@ func (r *MemoryParticipantRepo) GetParticipant(ctx context.Context, filter entit
 
 	// If ID is provided, search by ID first (most specific)
 	if filter.ID != nil {
-		for _, sessionParticipants := range r.participants {
-			if p, ok := sessionParticipants[*filter.ID]; ok {
-				return p, nil
-			}
+		if p, ok := r.participants[*filter.ID]; ok {
+			return p, nil
 		}
 		return nil, ErrNotFound
 	}
 
-	// If SessionID and Nickname are provided, search by both
-	if filter.SessionID != nil && filter.Nickname != nil {
-		if sessionNicknames, ok := r.byNickname[*filter.SessionID]; ok {
-			if p, ok := sessionNicknames[*filter.Nickname]; ok {
-				return p, nil
-			}
-		}
-		return nil, ErrNotFound
-	}
-
-	// If only SessionID is provided, return first participant in session
-	if filter.SessionID != nil {
-		if sessionParticipants, ok := r.participants[*filter.SessionID]; ok {
-			for _, p := range sessionParticipants {
-				return p, nil // Return first participant found
-			}
-		}
-		return nil, ErrNotFound
-	}
-
-	// If only Nickname is provided, search across all sessions
+	// If Nickname is provided, search by nickname
 	if filter.Nickname != nil {
-		for _, sessionNicknames := range r.byNickname {
-			if p, ok := sessionNicknames[*filter.Nickname]; ok {
-				return p, nil
-			}
+		if p, ok := r.byNickname[*filter.Nickname]; ok {
+			return p, nil
 		}
 		return nil, ErrNotFound
 	}
@@ -203,21 +176,9 @@ func (r *MemoryParticipantRepo) ListParticipants(ctx context.Context, filter ent
 
 	var participants []*entity.Participant
 
-	// If SessionID is provided, list participants in that session
-	if filter.SessionID != nil {
-		if sessionParticipants, ok := r.participants[*filter.SessionID]; ok {
-			for _, p := range sessionParticipants {
-				participants = append(participants, p)
-			}
-		}
-		return participants, nil
-	}
-
-	// If no SessionID provided, list all participants across all sessions
-	for _, sessionParticipants := range r.participants {
-		for _, p := range sessionParticipants {
-			participants = append(participants, p)
-		}
+	// List all participants
+	for _, p := range r.participants {
+		participants = append(participants, p)
 	}
 
 	return participants, nil
@@ -227,19 +188,12 @@ func (r *MemoryParticipantRepo) UpdateParticipantLastSeen(ctx context.Context, p
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// Search through all sessions
-	for _, sessionParticipants := range r.participants {
-		if p, ok := sessionParticipants[participantID]; ok {
-			p.LastSeenAt = time.Now()
-			return nil
-		}
+	if p, ok := r.participants[participantID]; ok {
+		p.LastSeenAt = time.Now()
+		return nil
 	}
 
 	return ErrNotFound
-}
-
-func (r *MemoryParticipantRepo) AddParticipant(ctx context.Context, sessionID string, p *entity.Participant) error {
-	return r.CreateParticipant(ctx, p)
 }
 
 // UpvoteQuestion updates the upvote count and participant upvote set.

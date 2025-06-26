@@ -82,10 +82,10 @@ func NewBotClient(config BotConfig) *BotClient {
 // Authentication methods
 func (b *BotClient) authenticate(sessionID string) error {
 	// Try to register first
-	err := b.register(sessionID)
+	err := b.register()
 	if err != nil {
 		// If registration fails (e.g., nickname taken), try to login
-		err = b.login(sessionID)
+		err = b.login()
 		if err != nil {
 			return fmt.Errorf("failed to authenticate: %w", err)
 		}
@@ -93,8 +93,8 @@ func (b *BotClient) authenticate(sessionID string) error {
 	return nil
 }
 
-func (b *BotClient) register(sessionID string) error {
-	url := fmt.Sprintf("%s/api/v1/sessions/%s/register", b.config.APIBase, sessionID)
+func (b *BotClient) register() error {
+	url := fmt.Sprintf("%s/api/v1/auth/register", b.config.APIBase)
 	reqBody := map[string]string{"nickname": b.config.BotName}
 
 	bodyBytes, err := json.Marshal(reqBody)
@@ -118,12 +118,12 @@ func (b *BotClient) register(sessionID string) error {
 	}
 
 	b.config.Token = authResp.Data.Token
-	fmt.Printf("Bot registered successfully for session %s\n", sessionID)
+	fmt.Printf("Bot registered successfully\n")
 	return nil
 }
 
-func (b *BotClient) login(sessionID string) error {
-	url := fmt.Sprintf("%s/api/v1/sessions/%s/login", b.config.APIBase, sessionID)
+func (b *BotClient) login() error {
+	url := fmt.Sprintf("%s/api/v1/auth/login", b.config.APIBase)
 	reqBody := map[string]string{"nickname": b.config.BotName}
 
 	bodyBytes, err := json.Marshal(reqBody)
@@ -147,7 +147,7 @@ func (b *BotClient) login(sessionID string) error {
 	}
 
 	b.config.Token = authResp.Data.Token
-	fmt.Printf("Bot logged in successfully for session %s\n", sessionID)
+	fmt.Printf("Bot logged in successfully\n")
 	return nil
 }
 
