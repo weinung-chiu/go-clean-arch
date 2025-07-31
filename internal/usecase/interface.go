@@ -1,20 +1,28 @@
 package usecase
 
+import (
+	"context"
+	"go-clean-arch/internal/entity"
+)
+
 // Repository interfaces define contracts for data access in the use case layer.
 // These interfaces follow Clean Architecture principles by depending only on
 // the entity layer and providing abstractions for outer layers to implement.
 
-// Example repository interface structure:
-// type EntityRepository interface {
-//     Create(ctx context.Context, entity *entity.Entity) error
-//     GetByID(ctx context.Context, id string) (*entity.Entity, error)
-//     Update(ctx context.Context, entity *entity.Entity) error
-//     Delete(ctx context.Context, id string) error
-//     List(ctx context.Context, filter EntityFilter) ([]*entity.Entity, error)
-// }
+// BlogFilter defines filter criteria for blog queries
+type BlogFilter struct {
+	ID            *string
+	AuthorID      *string
+	PublishedOnly *bool
+	DraftsOnly    *bool
+	ScheduledOnly *bool
+}
 
-// Example service interface structure:
-// type ExternalService interface {
-//     ProcessData(ctx context.Context, data interface{}) error
-//     ValidateRequest(ctx context.Context, request interface{}) error
-// }
+// BlogRepository defines the contract for blog data access operations
+type BlogRepository interface {
+	Create(ctx context.Context, article *entity.Article) error
+	GetByID(ctx context.Context, id string) (*entity.Article, error)
+	Update(ctx context.Context, article *entity.Article) error
+	Delete(ctx context.Context, id string) error
+	List(ctx context.Context, filter BlogFilter) ([]*entity.Article, error)
+}
