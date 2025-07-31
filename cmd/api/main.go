@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go-clean-arch/internal/adapter"
 	"go-clean-arch/internal/config"
 	"go-clean-arch/internal/delivery/api"
 	"go-clean-arch/internal/platform/logger"
@@ -12,6 +11,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -19,89 +20,107 @@ import (
 )
 
 var (
-	AppName  = "live-QA"
-	AppBuild = "no_build"
+	AppName  = "go-clean-arch"
+	AppBuild = "dev"
 )
 
 func main() {
-	// TODO: load from .env file only if local development
+	// Load .env file for local development
 	if os.Getenv("APP_ENV") == "" {
-		err := godotenv.Load("./configs/.env")
-		if err != nil {
-			slog.Default().Error(fmt.Sprintf("failed to load .env file: %v", err))
+		if err := godotenv.Load("./configs/.env"); err != nil {
+			slog.Default().Warn("No .env file found, using environment variables")
 		}
 	}
+
+	// Load application configuration
 	cfg, err := config.Load()
 	if err != nil {
-		slog.Default().Error(fmt.Sprintf("failed to load config: %v", err))
+		slog.Default().Error("Failed to load config", "error", err)
 		os.Exit(1)
 	}
 
+	// Set up logging
 	var logLevel slog.Level
-	err = logLevel.UnmarshalText([]byte(cfg.LogLevel))
-	if err != nil {
-		slog.Default().Error(fmt.Sprintf("failed to unmarshal log level: %v", err))
+	if err := logLevel.UnmarshalText([]byte(cfg.LogLevel)); err != nil {
+		slog.Default().Error("Failed to parse log level", "error", err)
 		os.Exit(1)
 	}
 
-	rootLogger := slog.New(logger.NewSimpleHandler(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel})))
+	rootLogger := slog.New(logger.NewSimpleHandler(
+		slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}),
+	))
 	rootLogger = rootLogger.With("service", AppName, "build", AppBuild)
 
-	memRepo := adapter.NewMemoryRepo()
-
-	// TODO: handle default value in config loader
-	// Initialize JWT auth service
-	if cfg.JWTSecret == "" {
-		cfg.JWTSecret = "default-secret-key-change-in-production"
-		rootLogger.Warn("Using default JWT secret key. Set JWT_SECRET environment variable in production.")
-	}
-
-	if cfg.JWTExpiry == 0 {
-		cfg.JWTExpiry = 1440 // Default to 24 hours (1440 minutes)
-	}
-
-	jwtAuthService := adapter.NewJWTAuthService(
-		rootLogger,
-		cfg.JWTSecret,
-		time.Duration(cfg.JWTExpiry)*time.Minute,
-	)
+	// Initialize application dependencies
+	// TODO: Replace with actual repository and service implementations
+	// For example:
+	// - Database repositories
+	// - External service clients
+	// - Cache implementations
+	// - Authentication services
 
 	app, err := usecase.NewApplication(usecase.NewApplicationParams{
-		Logger:          rootLogger,
-		SessionRepo:     memRepo,
-		QuestionRepo:    memRepo,
-		ParticipantRepo: memRepo,
-		AuthServer:      jwtAuthService,
+		Logger: rootLogger,
+		// Add other dependencies here
 	})
 	if err != nil {
 		rootLogger.Error("Failed to create application", "error", err)
-		os.Exit(0)
+		os.Exit(1)
 	}
 
-	rootCtx := context.Background()
-
+	// Set up HTTP server
 	gin.SetMode(gin.ReleaseMode)
 	ginRouter := gin.New()
+	ginRouter.Use(gin.Recovery())
 
+	// Register API routes
 	api.RegisterRoutes(ginRouter, app)
 
-	// Build HTTP server
-	httpAddr := fmt.Sprintf("0.0.0.0:%d", cfg.ApiPort)
+	// Configure server
+	httpAddr := fmt.Sprintf(":%d", cfg.ApiPort)
 	server := &http.Server{
-		Addr:    httpAddr,
-		Handler: ginRouter,
+		Addr:           httpAddr,
+		Handler:        ginRouter,
+		ReadTimeout:    15 * time.Second,
+		WriteTimeout:   15 * time.Second,
+		IdleTimeout:    60 * time.Second,
+		MaxHeaderBytes: 1 << 20, // 1MB
 	}
 
-	// Run the server in a goroutine
+	// Set up graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Handle shutdown signals
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	// Start server
 	go func() {
-		rootLogger.InfoContext(rootCtx, fmt.Sprintf("HTTP server is on http://%s", httpAddr))
-		err := server.ListenAndServe()
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			rootLogger.ErrorContext(rootCtx, "failed to start HTTP server", "error", err)
-			os.Exit(1)
+		rootLogger.InfoContext(ctx, "Starting HTTP server", "addr", httpAddr)
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			rootLogger.ErrorContext(ctx, "HTTP server failed", "error", err)
+			cancel()
 		}
 	}()
 
-	<-rootCtx.Done()
+	// Wait for shutdown signal
+	select {
+	case sig := <-sigChan:
+		rootLogger.InfoContext(ctx, "Received shutdown signal", "signal", sig)
+	case <-ctx.Done():
+		rootLogger.InfoContext(ctx, "Context cancelled")
+	}
 
+	// Graceful shutdown
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer shutdownCancel()
+
+	rootLogger.InfoContext(shutdownCtx, "Shutting down HTTP server")
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		rootLogger.ErrorContext(shutdownCtx, "HTTP server shutdown failed", "error", err)
+		os.Exit(1)
+	}
+
+	rootLogger.InfoContext(shutdownCtx, "Server shutdown complete")
 }

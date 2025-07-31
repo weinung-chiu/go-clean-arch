@@ -1,96 +1,163 @@
-# Real-time Q&A Board (Clean Architecture Example)
+# Go Clean Architecture - Starter Template
 
-This project is a complete, working example of a Real-time Q\&A Board built using the **Go Clean Architecture Framework**. It demonstrates how to structure a modern Go application that handles both RESTful API requests and real-time WebSocket communication.
+A clean, well-structured Go project template following Clean Architecture principles. This repository serves as a starting point for new Go projects with proper architectural boundaries and best practices.
 
-The goal is to provide a practical, easy-to-understand template for teams looking to adopt Go and Clean Architecture for building scalable and maintainable web services.
+## What is Clean Architecture?
 
-## Core Concepts Demonstrated
+Clean Architecture, popularized by Robert C. Martin (Uncle Bob), is a software design philosophy that emphasizes:
 
-* **Clean Architecture:** A strict separation of concerns into four distinct layers (`entity`, `usecase`, `adapter`, `delivery`).
-* **Hybrid API Design:** A combination of a RESTful API for session management and a WebSocket API for all real-time events.
-* **Persist-First Strategy:** A robust flow for handling data submission, inspired by modern messaging architectures like Slack's.
-* **Beginner-Friendly Code:** Clear and idiomatic Go code that avoids overly complex or dogmatic patterns.
+- **Dependency Inversion**: Inner layers never depend on outer layers
+- **Separation of Concerns**: Each layer has distinct responsibilities  
+- **Testability**: Business logic is independent of frameworks and external systems
+- **Maintainability**: Code is organized for long-term maintainability
 
------
+**Source**: [The Clean Architecture by Uncle Bob](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
 
-## Architecture Overview
+## Project Structure
 
-The framework is organized into a `3+1` layer design to enforce the Dependency Rule, ensuring the business logic (`usecase`) remains independent of external concerns like databases or web frameworks.
+This project follows Go Clean Architecture patterns with clear layer boundaries:
 
-1.  **Entity**: The core data structures of the application (e.g., `Session`, `Question`). These are pure Go structs.
-2.  **Usecase**: Contains the business logic and orchestrates the flow of data. It defines interfaces that the outer layers must implement.
-3.  **Adapter**: The "glue" layer. Implements the interfaces defined by the use cases, connecting to databases, caches, or other services.
-4.  **Delivery**: The entrypoint layer that handles incoming requests (e.g., HTTP handlers, WebSocket controllers) and passes them to the use case layer.
-
------
-
-## API Design
-
-The application exposes both REST and WebSocket endpoints to provide a responsive user experience.
-
-### RESTful API (HTTP)
-
-Used for initial data loading and session management.
-
-| Method | Endpoint | Description | Audience |
-| --- | --- | --- | --- |
-| `POST` | `/sessions` | Creates a new Q\&A `Session`. | Presenter/Admin |
-| `GET` | `/sessions/{sessionID}/questions` | Fetches all questions for a session. Used on initial page load. | Participant |
-| `POST` | `/sessions/{sessionID}/questions` | Submits a new question to a session. | Participant |
-
-\<br/\>
-
-### WebSocket API
-
-Used for all real-time events within a Q\&A session.
-
-| Endpoint | Action |
-| --- | --- |
-| `GET /ws/{sessionID}` | A client joins a session and upgrades the connection to a WebSocket. |
-
-**Client → Server Messages:**
-
-| Type | Payload | Description |
-| --- | --- | --- |
-| `QUESTION_SUBMIT` | `{ "text": "..." }` | Submits a new question in real-time. <!-- ⚠️ Not implemented via WebSocket; handled via REST API instead. --> |
-| `QUESTION_UPVOTE` | `{ "question_id": "..." }` | Upvotes an existing question. <!-- ⚠️ Not implemented via WebSocket; handled via REST API instead. --> |
-
-**Server → Client Messages:**
-
-| Type | Payload | Description |
-| --- | --- | --- |
-| `BOARD_STATE_UPDATED` | `{ "questions": [...] }` | Broadcasts the complete, sorted list of questions to all participants, keeping everyone in sync. |
-| `ERROR` | `{ "message": "..." }` | Sends a specific error message to a single client (e.g., "Already upvoted"). <!-- ⚠️ Not implemented as a dedicated WebSocket message type in the current codebase. --> |
-
------
-
-## Core Flow: Submitting a Question
-
-To ensure data integrity and a responsive feel, this project uses a "persist-first" design for creating new questions.
-
-1.  The client submits a new question via an **HTTP POST** request.
-2.  The **Web App** (delivery/adapter layers) immediately persists the question to the database.
-3.  Upon successful persistence, the **Usecase** layer triggers a broadcast event.
-4.  The **Channel Server** (WebSocket handler) receives this event, fetches the newly updated and sorted list of all questions, and pushes the complete state to all connected clients.
-
-<!-- end list -->
-
-```mermaid
-graph TD
-    subgraph Client
-        A[Participant's Browser]
-    end
-
-    subgraph Backend
-        B[Web App (REST Handler)]
-        C[Database]
-        D[Broadcaster]
-        E[Channel Server (WebSocket Handler)]
-    end
-
-    A -- 1. POST /questions --> B
-    B -- 2. Persist Question --> C
-    B -- 3. Trigger Broadcast --> D
-    D -- 4. Push "State Updated" Event --> E
-    E -- 5. Broadcast New Board State --> A
 ```
+.
+├── cmd/                    # Application entry points
+│   └── api/               # HTTP API server
+├── internal/              # Private application code
+│   ├── entity/           # Business entities (innermost layer)
+│   ├── usecase/          # Business logic and application services
+│   ├── adapter/          # External interface implementations
+│   ├── delivery/         # HTTP handlers and routing
+│   │   └── api/
+│   │       └── router.go
+│   ├── platform/         # Common utilities (logger, etc.)
+│   │   └── logger/
+│   └── config/           # Configuration management
+├── configs/              # Configuration files
+├── go.mod               # Go module definition
+└── CLAUDE.md            # Development guidelines
+```
+
+## Layer Responsibilities
+
+### Entities (`internal/entity/`)
+- Pure business objects with no external dependencies
+- Core business rules and data structures
+- Independent of frameworks, databases, or external concerns
+
+### Use Cases (`internal/usecase/`)
+- Business logic and application services
+- Orchestrates entities and defines application-specific business rules
+- Depends only on entities and interfaces
+
+### Adapters (`internal/adapter/`)
+- Implementations of interfaces defined in use case layer
+- Database repositories, external service clients
+- Handles technical details of external integrations
+
+### Delivery (`internal/delivery/`)
+- HTTP handlers, routing, request/response transformation
+- Framework-specific code (Gin, middleware, etc.)
+- Converts external requests to use case calls
+
+## Getting Started
+
+### Prerequisites
+- Go 1.24+ 
+- Basic understanding of Clean Architecture principles
+
+### Running the Application
+
+1. **Clone and setup**:
+   ```bash
+   git clone <repository-url>
+   cd go-clean-arch
+   ```
+
+2. **Configure environment** (optional):
+   ```bash
+   # Set environment variables directly or create .env file in configs/
+   export APP_ENV=dev
+   export API_PORT=8080
+   export APP_LOG_LEVEL=debug
+   ```
+
+3. **Run the API server**:
+   ```bash
+   go run cmd/api/main.go
+   ```
+
+4. **Test the health endpoint**:
+   ```bash
+   curl http://localhost:8080/health
+   ```
+
+### Development Commands
+
+- **Build**: `go build ./...`
+- **Test**: `go test ./...`
+- **Format**: `go fmt ./...`
+- **Vet**: `go vet ./...`
+
+### Process Cleanup (if needed)
+If you encounter port conflicts or orphaned processes:
+```bash
+# Kill orphaned go run processes
+pkill -f "go run"
+
+# Free up port 8080 (or your configured port)
+lsof -ti:8080 | xargs kill -9
+
+# Clean Go build cache
+go clean -cache -modcache -testcache
+```
+
+## Architecture Guidelines
+
+### Dependency Rule
+- **Inner layers** (entities, use cases) never import outer layers
+- **Outer layers** can import and depend on inner layers
+- Use **interfaces** to invert dependencies when needed
+
+### Implementation Patterns
+
+1. **Start with entities** - Define your core business objects
+2. **Define use case interfaces** - Specify what your application needs
+3. **Implement adapters** - Create concrete implementations
+4. **Wire in main()** - Dependency injection at application startup
+
+### Adding New Features
+
+1. **Entity Layer**: Define business objects in `internal/entity/`
+2. **Use Case Layer**: Create business logic in `internal/usecase/`
+3. **Adapter Layer**: Implement repositories/services in `internal/adapter/`
+4. **Delivery Layer**: Add HTTP handlers in `internal/delivery/api/`
+5. **Wire Dependencies**: Update `cmd/api/main.go` with new dependencies
+
+## Configuration
+
+The application uses environment-based configuration:
+
+- `APP_ENV`: Environment (dev, prod) - defaults to "prod"
+- `APP_LOG_LEVEL`: Log level (debug, info, warn, error) - defaults to "warn"  
+- `API_PORT`: HTTP server port - defaults to 8080
+
+See `internal/config/` for configuration management.
+
+## Next Steps
+
+This template provides a clean foundation. To build your application:
+
+1. **Define your domain entities** in `internal/entity/`
+2. **Implement business logic** in `internal/usecase/`
+3. **Add data persistence** with repository implementations in `internal/adapter/`
+4. **Create HTTP endpoints** in `internal/delivery/api/`
+5. **Add tests** for each layer, especially business logic
+
+## References
+
+- [Clean Architecture by Uncle Bob](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+- [golang-standards/project-layout](https://github.com/golang-standards/project-layout)
+- [Go Clean Architecture Examples](https://github.com/bxcodec/go-clean-arch)
+
+---
+
+*This project template prioritizes architectural clarity and maintainability over feature completeness. It's designed to be a solid foundation for building scalable Go applications.*

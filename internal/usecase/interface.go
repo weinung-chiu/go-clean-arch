@@ -1,27 +1,20 @@
 package usecase
 
-import (
-	"context"
-	"go-clean-arch/internal/entity"
-)
+// Repository interfaces define contracts for data access in the use case layer.
+// These interfaces follow Clean Architecture principles by depending only on
+// the entity layer and providing abstractions for outer layers to implement.
 
-type SessionRepository interface {
-	CreateSession(ctx context.Context, session *entity.Session) error
-	GetSessionByID(ctx context.Context, sessionID string) (*entity.Session, error)
-	AddParticipantToSession(ctx context.Context, sessionID string, participant *entity.Participant) error
-	ListSessions(ctx context.Context) ([]*entity.Session, error)
-}
+// Example repository interface structure:
+// type EntityRepository interface {
+//     Create(ctx context.Context, entity *entity.Entity) error
+//     GetByID(ctx context.Context, id string) (*entity.Entity, error)
+//     Update(ctx context.Context, entity *entity.Entity) error
+//     Delete(ctx context.Context, id string) error
+//     List(ctx context.Context, filter EntityFilter) ([]*entity.Entity, error)
+// }
 
-type QuestionRepository interface {
-	CreateQuestion(ctx context.Context, question *entity.Question) error
-	ListQuestionsBySession(ctx context.Context, sessionID string) ([]*entity.Question, error)
-	GetQuestionByID(ctx context.Context, questionID string) (*entity.Question, error)
-	UpvoteQuestionByID(ctx context.Context, questionID, participantID, participantNickname string) (bool, error)
-}
-
-type ParticipantRepository interface {
-	CreateParticipant(ctx context.Context, participant *entity.Participant) error
-	GetParticipant(ctx context.Context, filter entity.ParticipantFilter) (*entity.Participant, error)
-	UpdateParticipantLastSeen(ctx context.Context, participantID string) error
-	ListParticipants(ctx context.Context, filter entity.ParticipantFilter) ([]*entity.Participant, error)
-}
+// Example service interface structure:
+// type ExternalService interface {
+//     ProcessData(ctx context.Context, data interface{}) error
+//     ValidateRequest(ctx context.Context, request interface{}) error
+// }
