@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go-clean-arch/internal/adapter"
 	"go-clean-arch/internal/config"
 	"go-clean-arch/internal/delivery/api"
 	"go-clean-arch/internal/platform/logger"
@@ -52,16 +53,11 @@ func main() {
 	rootLogger = rootLogger.With("service", AppName, "build", AppBuild)
 
 	// Initialize application dependencies
-	// TODO: Replace with actual repository and service implementations
-	// For example:
-	// - Database repositories
-	// - External service clients
-	// - Cache implementations
-	// - Authentication services
+	blogRepo := adapter.NewMemoryBlogRepository()
 
 	app, err := usecase.NewApplication(usecase.NewApplicationParams{
-		Logger: rootLogger,
-		// Add other dependencies here
+		Logger:   rootLogger,
+		BlogRepo: blogRepo,
 	})
 	if err != nil {
 		rootLogger.Error("Failed to create application", "error", err)
