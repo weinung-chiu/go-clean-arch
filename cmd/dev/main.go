@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// thinkDifferentContent contains the "Think Different" content for our blog post
+// thinkDifferentContent contains the "Think Different" content for our blog article
 const thinkDifferentContent = `Here's to the crazy ones. The misfits. The rebels. The troublemakers. The round pegs in the square holes. The ones who see things differently.
 
 They're not fond of rules. And they have no respect for the status quo.
@@ -48,20 +48,20 @@ func main() {
 	fmt.Println("🚀 Clean Blog - Development Environment")
 	fmt.Println("=======================================")
 
-	// Test Case 1: Create a blog post
-	fmt.Println("\n📝 Creating a new blog post...")
-	article, err := app.CreatePost(ctx, "Think Different", thinkDifferentContent, "steve-jobs")
+	// Test Case 1: Create a blog article
+	fmt.Println("\n📝 Creating a new blog article...")
+	article, err := app.CreateArticle(ctx, "Think Different", thinkDifferentContent, "steve-jobs")
 	if err != nil {
-		logger.Error("Failed to create post", "error", err)
+		logger.Error("Failed to create article", "error", err)
 		return
 	}
-	fmt.Printf("✅ Created post: %s (ID: %s)\n", article.Title, article.ID)
+	fmt.Printf("✅ Created article: %s (ID: %s)\n", article.Title, article.ID)
 	fmt.Printf("   Status: %s\n", getArticleStatus(article))
 
 	// Test Case 2: List drafts
-	fmt.Println("\n📋 Listing draft posts...")
+	fmt.Println("\n📋 Listing draft articles...")
 	draftFilter := usecase.BlogFilter{DraftsOnly: boolPtr(true)}
-	drafts, err := app.ListPosts(ctx, draftFilter)
+	drafts, err := app.ListArticles(ctx, draftFilter)
 	if err != nil {
 		logger.Error("Failed to list drafts", "error", err)
 		return
@@ -71,81 +71,81 @@ func main() {
 		fmt.Printf("   - %s (%s)\n", draft.Title, draft.ID)
 	}
 
-	// Test Case 3: Publish the post
-	fmt.Println("\n📢 Publishing the post...")
-	publishedArticle, err := app.PublishPost(ctx, article.ID)
+	// Test Case 3: Publish the article
+	fmt.Println("\n📢 Publishing the article...")
+	publishedArticle, err := app.PublishArticle(ctx, article.ID)
 	if err != nil {
-		logger.Error("Failed to publish post", "error", err)
+		logger.Error("Failed to publish article", "error", err)
 		return
 	}
-	fmt.Printf("✅ Published post: %s\n", publishedArticle.Title)
+	fmt.Printf("✅ Published article: %s\n", publishedArticle.Title)
 	fmt.Printf("   Status: %s\n", getArticleStatus(publishedArticle))
 	fmt.Printf("   Published at: %s\n", publishedArticle.PublishedAt.Format(time.RFC3339))
 
-	// Test Case 4: List published posts
-	fmt.Println("\n📖 Listing published posts...")
+	// Test Case 4: List published articles
+	fmt.Println("\n📖 Listing published articles...")
 	publishedFilter := usecase.BlogFilter{PublishedOnly: boolPtr(true)}
-	published, err := app.ListPosts(ctx, publishedFilter)
+	published, err := app.ListArticles(ctx, publishedFilter)
 	if err != nil {
-		logger.Error("Failed to list published posts", "error", err)
+		logger.Error("Failed to list published articles", "error", err)
 		return
 	}
-	fmt.Printf("✅ Found %d published post(s)\n", len(published))
+	fmt.Printf("✅ Found %d published article(s)\n", len(published))
 	for _, pub := range published {
 		fmt.Printf("   - %s (%s) - Published: %s\n",
 			pub.Title, pub.ID, pub.PublishedAt.Format("2006-01-02 15:04:05"))
 	}
 
-	// Test Case 5: Get specific post
-	fmt.Println("\n🔍 Retrieving specific post...")
-	retrievedArticle, err := app.GetPost(ctx, article.ID)
+	// Test Case 5: Get specific article
+	fmt.Println("\n🔍 Retrieving specific article...")
+	retrievedArticle, err := app.GetArticle(ctx, article.ID)
 	if err != nil {
-		logger.Error("Failed to get post", "error", err)
+		logger.Error("Failed to get article", "error", err)
 		return
 	}
-	fmt.Printf("✅ Retrieved post: %s\n", retrievedArticle.Title)
+	fmt.Printf("✅ Retrieved article: %s\n", retrievedArticle.Title)
 	fmt.Printf("   Content preview: %.100s...\n", retrievedArticle.Content)
 
-	// Test Case 6: Update post
-	fmt.Println("\n✏️  Updating post content...")
+	// Test Case 6: Update article
+	fmt.Println("\n✏️  Updating article content...")
 	updatedContent := thinkDifferentContent + "\n\n--- Updated with additional inspiration ---"
-	updatedArticle, err := app.UpdatePost(ctx, article.ID, "Think Different - Updated", updatedContent)
+	updatedArticle, err := app.UpdateArticle(ctx, article.ID, "Think Different - Updated", updatedContent)
 	if err != nil {
-		logger.Error("Failed to update post", "error", err)
+		logger.Error("Failed to update article", "error", err)
 		return
 	}
-	fmt.Printf("✅ Updated post: %s\n", updatedArticle.Title)
+	fmt.Printf("✅ Updated article: %s\n", updatedArticle.Title)
 	fmt.Printf("   Updated at: %s\n", updatedArticle.UpdatedAt.Format(time.RFC3339))
 
-	// Test Case 7: Schedule a future post
-	fmt.Println("\n⏰ Creating and scheduling a future post...")
-	futurePost, err := app.CreatePost(ctx, "Future Innovation", "This post is scheduled for the future!", "future-author")
+	// Test Case 7: Schedule a future article
+	fmt.Println("\n⏰ Creating and scheduling a future article...")
+	futurePost, err := app.CreateArticle(ctx, "Future Innovation", "This article is scheduled for the future!", "future-author")
 	if err != nil {
-		logger.Error("Failed to create future post", "error", err)
+		logger.Error("Failed to create future article", "error", err)
 		return
 	}
 
 	futureTime := time.Now().Add(24 * time.Hour) // Schedule for tomorrow
-	scheduledPost, err := app.SchedulePost(ctx, futurePost.ID, futureTime)
+	scheduledPost, err := app.ScheduleArticle(ctx, futurePost.ID, futureTime)
 	if err != nil {
-		logger.Error("Failed to schedule post", "error", err)
+		logger.Error("Failed to schedule article", "error", err)
 		return
 	}
-	fmt.Printf("✅ Scheduled post: %s\n", scheduledPost.Title)
+	fmt.Printf("✅ Scheduled article: %s\n", scheduledPost.Title)
 	fmt.Printf("   Status: %s\n", getArticleStatus(scheduledPost))
 	fmt.Printf("   Scheduled for: %s\n", scheduledPost.PublishedAt.Format(time.RFC3339))
 
-	// Test Case 8: List all posts
-	fmt.Println("\n📚 Listing all posts...")
-	allPosts, err := app.ListPosts(ctx, usecase.BlogFilter{})
+	// Test Case 8: List all articles
+	fmt.Println("\n📚 Listing all articles...")
+	allPosts, err := app.ListArticles(ctx, usecase.BlogFilter{})
 	if err != nil {
-		logger.Error("Failed to list all posts", "error", err)
+		logger.Error("Failed to list all articles", "error", err)
 		return
 	}
-	fmt.Printf("✅ Found %d total post(s)\n", len(allPosts))
-	for _, post := range allPosts {
+	fmt.Printf("✅ Found %d total article(s)\n", len(allPosts))
+	for _, article := range allPosts {
 		fmt.Printf("   - %s (%s) - Status: %s\n",
-			post.Title, post.ID, getArticleStatus(post))
+			article.Title, article.ID, getArticleStatus(article))
 	}
 
 	fmt.Println("\n🎉 All tests completed successfully!")

@@ -45,7 +45,7 @@ func listPublishedArticles(app *usecase.Application) gin.HandlerFunc {
 			PublishedOnly: &publishedOnly,
 		}
 
-		articles, err := app.ListPosts(c.Request.Context(), filter)
+		articles, err := app.ListArticles(c.Request.Context(), filter)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve articles"})
 			return
@@ -64,7 +64,7 @@ func createArticle(app *usecase.Application) gin.HandlerFunc {
 			return
 		}
 
-		article, err := app.CreatePost(c.Request.Context(), req.Title, req.Content, req.AuthorID)
+		article, err := app.CreateArticle(c.Request.Context(), req.Title, req.Content, req.AuthorID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create article"})
 			return
@@ -89,7 +89,7 @@ func updateArticle(app *usecase.Application) gin.HandlerFunc {
 			return
 		}
 
-		article, err := app.UpdatePost(c.Request.Context(), articleID, req.Title, req.Content)
+		article, err := app.UpdateArticle(c.Request.Context(), articleID, req.Title, req.Content)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update article"})
 			return

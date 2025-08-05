@@ -38,9 +38,9 @@ func NewApplication(params NewApplicationParams) (*Application, error) {
 	}, nil
 }
 
-// CreatePost creates a new blog post in draft state
-func (a *Application) CreatePost(ctx context.Context, title, content, authorID string) (*entity.Article, error) {
-	a.logger.DebugContext(ctx, "Creating new post", "title", title, "authorID", authorID)
+// CreateArticle creates a new blog article in draft state
+func (a *Application) CreateArticle(ctx context.Context, title, content, authorID string) (*entity.Article, error) {
+	a.logger.DebugContext(ctx, "Creating new article", "title", title, "authorID", authorID)
 
 	if title == "" {
 		return nil, fmt.Errorf("title is required")
@@ -64,15 +64,15 @@ func (a *Application) CreatePost(ctx context.Context, title, content, authorID s
 	}
 
 	if err := a.blogRepo.Create(ctx, article); err != nil {
-		return nil, fmt.Errorf("failed to create post: %w", err)
+		return nil, fmt.Errorf("failed to create article: %w", err)
 	}
 
 	return article, nil
 }
 
-// GetPost retrieves a blog post by ID
-func (a *Application) GetPost(ctx context.Context, id string) (*entity.Article, error) {
-	a.logger.DebugContext(ctx, "Getting post", "id", id)
+// GetArticle retrieves a blog article by ID
+func (a *Application) GetArticle(ctx context.Context, id string) (*entity.Article, error) {
+	a.logger.DebugContext(ctx, "Getting article", "id", id)
 
 	if id == "" {
 		return nil, fmt.Errorf("id is required")
@@ -80,27 +80,27 @@ func (a *Application) GetPost(ctx context.Context, id string) (*entity.Article, 
 
 	article, err := a.blogRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get post: %w", err)
+		return nil, fmt.Errorf("failed to get article: %w", err)
 	}
 
 	return article, nil
 }
 
-// ListPosts retrieves blog posts based on filter criteria
-func (a *Application) ListPosts(ctx context.Context, filter BlogFilter) ([]*entity.Article, error) {
-	a.logger.DebugContext(ctx, "Listing posts", "filter", filter)
+// ListArticles retrieves blog articles based on filter criteria
+func (a *Application) ListArticles(ctx context.Context, filter BlogFilter) ([]*entity.Article, error) {
+	a.logger.DebugContext(ctx, "Listing articles", "filter", filter)
 
 	articles, err := a.blogRepo.List(ctx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list posts: %w", err)
+		return nil, fmt.Errorf("failed to list articles: %w", err)
 	}
 
 	return articles, nil
 }
 
-// UpdatePost updates an existing blog post's content
-func (a *Application) UpdatePost(ctx context.Context, id, title, content string) (*entity.Article, error) {
-	a.logger.DebugContext(ctx, "Updating post", "id", id, "title", title)
+// UpdateArticle updates an existing blog article's content
+func (a *Application) UpdateArticle(ctx context.Context, id, title, content string) (*entity.Article, error) {
+	a.logger.DebugContext(ctx, "Updating article", "id", id, "title", title)
 
 	if id == "" {
 		return nil, fmt.Errorf("id is required")
@@ -114,7 +114,7 @@ func (a *Application) UpdatePost(ctx context.Context, id, title, content string)
 
 	article, err := a.blogRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get post for update: %w", err)
+		return nil, fmt.Errorf("failed to get article for update: %w", err)
 	}
 
 	article.Title = title
@@ -122,50 +122,50 @@ func (a *Application) UpdatePost(ctx context.Context, id, title, content string)
 	article.UpdatedAt = time.Now()
 
 	if err := a.blogRepo.Update(ctx, article); err != nil {
-		return nil, fmt.Errorf("failed to update post: %w", err)
+		return nil, fmt.Errorf("failed to update article: %w", err)
 	}
 
 	return article, nil
 }
 
-// PublishPost publishes a blog post immediately
-func (a *Application) PublishPost(ctx context.Context, id string) (*entity.Article, error) {
-	a.logger.DebugContext(ctx, "Publishing post", "id", id)
+// PublishArticle publishes a blog article immediately
+func (a *Application) PublishArticle(ctx context.Context, id string) (*entity.Article, error) {
+	a.logger.DebugContext(ctx, "Publishing article", "id", id)
 
-	return a.schedulePost(ctx, id, time.Now())
+	return a.scheduleArticle(ctx, id, time.Now())
 }
 
-// SchedulePost schedules a blog post for future publication
-func (a *Application) SchedulePost(ctx context.Context, id string, publishAt time.Time) (*entity.Article, error) {
-	a.logger.DebugContext(ctx, "Scheduling post", "id", id, "publishAt", publishAt)
+// ScheduleArticle schedules a blog article for future publication
+func (a *Application) ScheduleArticle(ctx context.Context, id string, publishAt time.Time) (*entity.Article, error) {
+	a.logger.DebugContext(ctx, "Scheduling article", "id", id, "publishAt", publishAt)
 
-	return a.schedulePost(ctx, id, publishAt)
+	return a.scheduleArticle(ctx, id, publishAt)
 }
 
-// schedulePost internal helper for publishing/scheduling
-func (a *Application) schedulePost(ctx context.Context, id string, publishAt time.Time) (*entity.Article, error) {
+// scheduleArticle internal helper for publishing/scheduling
+func (a *Application) scheduleArticle(ctx context.Context, id string, publishAt time.Time) (*entity.Article, error) {
 	if id == "" {
 		return nil, fmt.Errorf("id is required")
 	}
 
 	article, err := a.blogRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get post for publishing: %w", err)
+		return nil, fmt.Errorf("failed to get article for publishing: %w", err)
 	}
 
 	article.PublishedAt = &publishAt
 	article.UpdatedAt = time.Now()
 
 	if err := a.blogRepo.Update(ctx, article); err != nil {
-		return nil, fmt.Errorf("failed to publish post: %w", err)
+		return nil, fmt.Errorf("failed to publish article: %w", err)
 	}
 
 	return article, nil
 }
 
-// UnpublishPost unpublishes a blog post (makes it draft)
-func (a *Application) UnpublishPost(ctx context.Context, id string) (*entity.Article, error) {
-	a.logger.DebugContext(ctx, "Unpublishing post", "id", id)
+// UnpublishArticle unpublishes a blog article (makes it draft)
+func (a *Application) UnpublishArticle(ctx context.Context, id string) (*entity.Article, error) {
+	a.logger.DebugContext(ctx, "Unpublishing article", "id", id)
 
 	if id == "" {
 		return nil, fmt.Errorf("id is required")
@@ -173,29 +173,29 @@ func (a *Application) UnpublishPost(ctx context.Context, id string) (*entity.Art
 
 	article, err := a.blogRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get post for unpublishing: %w", err)
+		return nil, fmt.Errorf("failed to get article for unpublishing: %w", err)
 	}
 
 	article.PublishedAt = nil
 	article.UpdatedAt = time.Now()
 
 	if err := a.blogRepo.Update(ctx, article); err != nil {
-		return nil, fmt.Errorf("failed to unpublish post: %w", err)
+		return nil, fmt.Errorf("failed to unpublish article: %w", err)
 	}
 
 	return article, nil
 }
 
-// DeletePost deletes a blog post
-func (a *Application) DeletePost(ctx context.Context, id string) error {
-	a.logger.DebugContext(ctx, "Deleting post", "id", id)
+// DeleteArticle deletes a blog article
+func (a *Application) DeleteArticle(ctx context.Context, id string) error {
+	a.logger.DebugContext(ctx, "Deleting article", "id", id)
 
 	if id == "" {
 		return fmt.Errorf("id is required")
 	}
 
 	if err := a.blogRepo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("failed to delete post: %w", err)
+		return fmt.Errorf("failed to delete article: %w", err)
 	}
 
 	return nil
