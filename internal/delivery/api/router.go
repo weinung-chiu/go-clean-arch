@@ -22,6 +22,7 @@ func RegisterRoutes(r *gin.Engine, app *usecase.Application) {
 		v1.POST("/articles", createArticle(app))
 		v1.PUT("/articles/:id", updateArticle(app))
 		v1.POST("/articles/:id/publish", publishArticle(app))
+		v1.DELETE("/articles/:id", deleteArticle(app))
 	}
 }
 
@@ -116,5 +117,24 @@ func publishArticle(app *usecase.Application) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{"article": article})
+	}
+}
+
+// deleteArticle returns a handler for deleting an existing article
+func deleteArticle(app *usecase.Application) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		articleID := c.Param("id")
+		if articleID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Article ID is required"})
+			return
+		}
+
+		err := app.DeleteArticle(c.Request.Context(), articleID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete article"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Article deleted successfully"})
 	}
 }
