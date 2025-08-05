@@ -1,163 +1,212 @@
-# Go Clean Architecture - Starter Template
+# Clean Architecture Demo - Go Implementation
 
-A clean, well-structured Go project template following Clean Architecture principles. This repository serves as a starting point for new Go projects with proper architectural boundaries and best practices.
+A practical demonstration of Clean Architecture principles in Go, implemented as a blog system to showcase architectural patterns and design decisions.
 
-## What is Clean Architecture?
+## Architecture Overview
 
-Clean Architecture, popularized by Robert C. Martin (Uncle Bob), is a software design philosophy that emphasizes:
+This project demonstrates how Clean Architecture enables **maintainable, testable, and framework-independent** Go applications through proper dependency management and layer separation.
 
-- **Dependency Inversion**: Inner layers never depend on outer layers
-- **Separation of Concerns**: Each layer has distinct responsibilities  
-- **Testability**: Business logic is independent of frameworks and external systems
-- **Maintainability**: Code is organized for long-term maintainability
+### Core Principles Demonstrated
 
-**Source**: [The Clean Architecture by Uncle Bob](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+✅ **Dependency Inversion**: Inner layers never depend on outer layers  
+✅ **Separation of Concerns**: Each layer has distinct, well-defined responsibilities  
+✅ **Framework Independence**: Business logic works without Gin, databases, or external tools  
+✅ **Interface Segregation**: Small, focused interfaces define layer contracts  
+✅ **Single Responsibility**: Each component has one reason to change
+
+## Layer Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Frameworks & Drivers                    │
+│  (HTTP Server, CLI, Database, External APIs)               │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │                Interface Adapters                   │   │
+│  │     (Controllers, Presenters, Repositories)        │   │
+│  │                                                     │   │
+│  │  ┌─────────────────────────────────────────────┐   │   │
+│  │  │              Application Business Rules     │   │   │
+│  │  │              (Use Cases, Interactors)       │   │   │
+│  │  │                                             │   │   │
+│  │  │  ┌─────────────────────────────────────┐   │   │   │
+│  │  │  │        Enterprise Business Rules    │   │   │   │
+│  │  │  │              (Entities)             │   │   │   │
+│  │  │  └─────────────────────────────────────┘   │   │   │
+│  │  └─────────────────────────────────────────────┘   │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Implementation Layers
+
+| Layer | Package | Responsibility | Dependencies |
+|-------|---------|----------------|--------------|
+| **Entities** | `internal/entity/` | Business objects & rules | None |
+| **Use Cases** | `internal/usecase/` | Application business logic | Entities only |
+| **Adapters** | `internal/adapter/` | Interface implementations | Use Cases + External |
+| **Delivery** | `internal/delivery/` | External interfaces | Use Cases |
+| **Main** | `cmd/*/` | Dependency injection | All layers |
+
+## Key Architectural Patterns
+
+### 1. Dependency Inversion Pattern
+
+**Use Case Layer defines interfaces:**
+```go
+// internal/usecase/interface.go
+type BlogRepository interface {
+    Create(ctx context.Context, article *entity.Article) error
+    GetByID(ctx context.Context, id string) (*entity.Article, error)
+    // ... more methods
+}
+```
+
+**Adapter Layer implements interfaces:**
+```go
+// internal/adapter/memory_blog_repository.go
+type MemoryBlogRepository struct { ... }
+
+func (r *MemoryBlogRepository) Create(ctx context.Context, article *entity.Article) error {
+    // Implementation details...
+}
+```
+
+**Result**: Business logic never depends on specific database implementations.
+
+### 2. Repository Pattern
+
+Clean separation between business logic and data persistence:
+
+```go
+// Use Case depends on interface, not implementation
+type Application struct {
+    blogRepo BlogRepository  // Interface, not concrete type
+}
+
+// Easy to swap implementations:
+// - MemoryBlogRepository (current)
+// - PostgreSQLRepository (future)
+// - MockRepository (testing)
+```
+
+### 3. Multiple Entry Points
+
+Different interfaces sharing the same business logic:
+
+```
+cmd/api/     → HTTP handlers → Application methods
+cmd/admin/   → CLI commands  → Application methods  
+cmd/dev/     → Test scripts  → Application methods
+```
+
+Same business rules, different interfaces.
 
 ## Project Structure
 
-This project follows Go Clean Architecture patterns with clear layer boundaries:
-
 ```
-.
-├── cmd/                    # Application entry points
-│   └── api/               # HTTP API server
-├── internal/              # Private application code
-│   ├── entity/           # Business entities (innermost layer)
-│   ├── usecase/          # Business logic and application services
-│   ├── adapter/          # External interface implementations
-│   ├── delivery/         # HTTP handlers and routing
-│   │   └── api/
-│   │       └── router.go
-│   ├── platform/         # Common utilities (logger, etc.)
-│   │   └── logger/
+├── cmd/                    # Entry points (Dependency Injection)
+│   ├── api/               # HTTP server
+│   ├── admin/             # CLI admin tool
+│   └── dev/               # Development utilities
+├── internal/
+│   ├── entity/           # 🔵 Business Entities (innermost)
+│   ├── usecase/          # 🟢 Application Business Rules
+│   ├── adapter/          # 🟡 Interface Adapters
+│   ├── delivery/         # 🔴 External Interfaces
+│   ├── platform/         # Infrastructure utilities
 │   └── config/           # Configuration management
-├── configs/              # Configuration files
-├── go.mod               # Go module definition
-└── CLAUDE.md            # Development guidelines
+└── configs/              # Configuration files
 ```
 
-## Layer Responsibilities
+## Architectural Benefits Demonstrated
 
-### Entities (`internal/entity/`)
-- Pure business objects with no external dependencies
-- Core business rules and data structures
-- Independent of frameworks, databases, or external concerns
+### 1. **Framework Independence**
+- Business logic has zero external dependencies
+- Can swap from Gin to Echo without changing business rules
+- Database-agnostic through repository interfaces
 
-### Use Cases (`internal/usecase/`)
-- Business logic and application services
-- Orchestrates entities and defines application-specific business rules
-- Depends only on entities and interfaces
+### 2. **Testability**  
+- Pure business logic can be unit tested without frameworks
+- Mock repositories for testing use cases
+- Integration tests at delivery layer
 
-### Adapters (`internal/adapter/`)
-- Implementations of interfaces defined in use case layer
-- Database repositories, external service clients
-- Handles technical details of external integrations
+### 3. **Multiple Interfaces**
+- Same business logic supports HTTP API AND CLI commands
+- Easy to add GraphQL, gRPC, or messaging interfaces
 
-### Delivery (`internal/delivery/`)
-- HTTP handlers, routing, request/response transformation
-- Framework-specific code (Gin, middleware, etc.)
-- Converts external requests to use case calls
+### 4. **Maintainability**
+- Changes in one layer don't cascade to others
+- Clear boundaries make code easy to understand
+- Dependency direction prevents architectural decay
 
-## Getting Started
+## Quick Demo
 
-### Prerequisites
-- Go 1.24+ 
-- Basic understanding of Clean Architecture principles
+### Test the Architecture
 
-### Running the Application
-
-1. **Clone and setup**:
-   ```bash
-   git clone <repository-url>
-   cd go-clean-arch
-   ```
-
-2. **Configure environment** (optional):
-   ```bash
-   # Set environment variables directly or create .env file in configs/
-   export APP_ENV=dev
-   export API_PORT=8080
-   export APP_LOG_LEVEL=debug
-   ```
-
-3. **Run the API server**:
-   ```bash
-   go run cmd/api/main.go
-   ```
-
-4. **Test the health endpoint**:
-   ```bash
-   curl http://localhost:8080/health
-   ```
-
-### Development Commands
-
-- **Build**: `go build ./...`
-- **Test**: `go test ./...`
-- **Format**: `go fmt ./...`
-- **Vet**: `go vet ./...`
-
-### Process Cleanup (if needed)
-If you encounter port conflicts or orphaned processes:
 ```bash
-# Kill orphaned go run processes
-pkill -f "go run"
+# 1. Start HTTP API
+go run cmd/api/main.go
 
-# Free up port 8080 (or your configured port)
-lsof -ti:8080 | xargs kill -9
+# 2. Create and publish article via HTTP
+curl -X POST localhost:80/api/v1/articles \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Test","content":"Content","author_id":"user"}'
 
-# Clean Go build cache
-go clean -cache -modcache -testcache
+curl -X POST localhost:80/api/v1/articles/{id}/publish
+
+# 3. Use CLI admin (same business logic, different interface)
+go run cmd/admin/main.go list
+
+# 4. Run development utilities
+go run cmd/dev/main.go
 ```
 
-## Architecture Guidelines
+## Development Commands
 
-### Dependency Rule
-- **Inner layers** (entities, use cases) never import outer layers
-- **Outer layers** can import and depend on inner layers
-- Use **interfaces** to invert dependencies when needed
+```bash
+# Build and test
+go build ./...
+go test ./...
+go fmt ./...
+go vet ./...
 
-### Implementation Patterns
+# Clean up processes if needed
+pkill -f "go run"
+```
 
-1. **Start with entities** - Define your core business objects
-2. **Define use case interfaces** - Specify what your application needs
-3. **Implement adapters** - Create concrete implementations
-4. **Wire in main()** - Dependency injection at application startup
+## Key Design Decisions
 
-### Adding New Features
+### Why Blog Domain?
+- **Familiar**: Everyone understands articles and publishing
+- **Rich Logic**: Draft→Published workflow demonstrates entity methods
+- **Multiple Operations**: CRUD + business operations (publish, delete)
 
-1. **Entity Layer**: Define business objects in `internal/entity/`
-2. **Use Case Layer**: Create business logic in `internal/usecase/`
-3. **Adapter Layer**: Implement repositories/services in `internal/adapter/`
-4. **Delivery Layer**: Add HTTP handlers in `internal/delivery/api/`
-5. **Wire Dependencies**: Update `cmd/api/main.go` with new dependencies
+### Why In-Memory Repository?
+- **Focus on Architecture**: Not distracted by database setup
+- **Interface Demonstration**: Easy to swap for real database
+- **Zero Dependencies**: Clone and run immediately
 
-## Configuration
-
-The application uses environment-based configuration:
-
-- `APP_ENV`: Environment (dev, prod) - defaults to "prod"
-- `APP_LOG_LEVEL`: Log level (debug, info, warn, error) - defaults to "warn"  
-- `API_PORT`: HTTP server port - defaults to 8080
-
-See `internal/config/` for configuration management.
+### Why Multiple Entry Points?
+- **Framework Independence**: Same logic, different interfaces  
+- **Dependency Injection**: Shows how to wire Clean Architecture
+- **Real-World Pattern**: Common in production applications
 
 ## Next Steps
 
-This template provides a clean foundation. To build your application:
+Replace components while keeping architecture intact:
 
-1. **Define your domain entities** in `internal/entity/`
-2. **Implement business logic** in `internal/usecase/`
-3. **Add data persistence** with repository implementations in `internal/adapter/`
-4. **Create HTTP endpoints** in `internal/delivery/api/`
-5. **Add tests** for each layer, especially business logic
+1. **Database**: Swap `MemoryBlogRepository` for `PostgreSQLRepository`
+2. **Authentication**: Add JWT middleware in delivery layer
+3. **Validation**: Request validation in handlers, business validation in use cases
+4. **Caching**: Cache adapter wrapping repository
+5. **Monitoring**: Observability in infrastructure layer
 
 ## References
 
 - [Clean Architecture by Uncle Bob](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
 - [golang-standards/project-layout](https://github.com/golang-standards/project-layout)
-- [Go Clean Architecture Examples](https://github.com/bxcodec/go-clean-arch)
 
 ---
 
-*This project template prioritizes architectural clarity and maintainability over feature completeness. It's designed to be a solid foundation for building scalable Go applications.*
+*Clean Architecture isn't just theory—it's a practical approach to building maintainable Go applications. This project shows how proper separation of concerns makes code easy to understand, test, and evolve.*
