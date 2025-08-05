@@ -21,6 +21,7 @@ func RegisterRoutes(r *gin.Engine, app *usecase.Application) {
 		v1.GET("/articles", listPublishedArticles(app))
 		v1.POST("/articles", createArticle(app))
 		v1.PUT("/articles/:id", updateArticle(app))
+		v1.POST("/articles/:id/publish", publishArticle(app))
 	}
 }
 
@@ -92,6 +93,25 @@ func updateArticle(app *usecase.Application) gin.HandlerFunc {
 		article, err := app.UpdateArticle(c.Request.Context(), articleID, req.Title, req.Content)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update article"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"article": article})
+	}
+}
+
+// publishArticle returns a handler for publishing an existing article
+func publishArticle(app *usecase.Application) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		articleID := c.Param("id")
+		if articleID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Article ID is required"})
+			return
+		}
+
+		article, err := app.PublishArticle(c.Request.Context(), articleID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to publish article"})
 			return
 		}
 
