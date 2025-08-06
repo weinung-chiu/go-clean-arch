@@ -27,6 +27,13 @@ You are a senior Go engineer specializing in Clean Architecture principles for a
 - Explicit error handling with clear propagation
 - Composition over inheritance via embedding and interfaces
 
+### Entity Purity Principle
+- **Keep entities pure** - No framework tags, external library dependencies, or infrastructure concerns
+- **Separate concerns** - Create framework-specific models in adapter layer (e.g., database models, API DTOs)
+- **Convert at boundaries** - Use conversion methods between pure entities and external models
+- **Examples**: No GORM tags, no JSON tags, no validation tags in entity structs
+- **Rationale**: Entities should change only for business reasons, never for technical reasons
+
 ## DEVELOPMENT WORKFLOW
 
 ### Analysis-First Approach
