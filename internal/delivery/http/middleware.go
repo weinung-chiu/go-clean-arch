@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -65,28 +66,34 @@ func TraceContext() gin.HandlerFunc {
 
 // RequestLogger creates a middleware that logs HTTP requests with W3C trace context
 func RequestLogger(logger *slog.Logger) gin.HandlerFunc {
-	return gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
+	return func(c *gin.Context) {
+		// Record start time
+		start := time.Now()
+		
+		// Process request
+		c.Next()
+		
 		// Extract trace ID from context
-		traceID := param.Keys[TraceIDKey]
+		traceID, _ := c.Get(TraceIDKey)
 		if traceID == nil {
 			traceID = "unknown"
 		}
 		
-		// Log structured request details
-		logger.InfoContext(param.Request.Context(), "HTTP request completed",
-			"trace_id", traceID,
-			"method", param.Method,
-			"path", param.Path,
-			"status", param.StatusCode,
-			"duration", param.Latency,
-			"client_ip", param.ClientIP,
-			"user_agent", param.Request.UserAgent(),
-			"response_size", param.BodySize,
-		)
+		// Calculate duration
+		duration := time.Since(start)
 		
-		// Return empty string since we're using structured logging
-		return ""
-	})
+		// Log structured request details
+		logger.InfoContext(c.Request.Context(), "HTTP request completed",
+			"trace_id", traceID,
+			"method", c.Request.Method,
+			"path", c.Request.URL.Path,
+			"status", c.Writer.Status(),
+			"duration", duration,
+			"client_ip", c.ClientIP(),
+			"user_agent", c.Request.UserAgent(),
+			"response_size", c.Writer.Size(),
+		)
+	}
 }
 
 // generateTraceID creates a new W3C compliant trace ID (16 bytes = 32 hex chars)

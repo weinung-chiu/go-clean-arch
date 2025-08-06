@@ -7,7 +7,6 @@ import (
 	"go-clean-arch/internal/adapter"
 	"go-clean-arch/internal/config"
 	httpdelivery "go-clean-arch/internal/delivery/http"
-	"go-clean-arch/internal/platform/logger"
 	"go-clean-arch/internal/usecase"
 	"log/slog"
 	"net/http"
@@ -39,9 +38,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	rootLogger := slog.New(logger.NewSimpleHandler(
-		slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}),
-	))
+	rootLogger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
 	rootLogger = rootLogger.With("service", AppName, "build", AppBuild)
 
 	// Initialize application dependencies
@@ -63,7 +60,6 @@ func main() {
 	// Set up HTTP server
 	gin.SetMode(gin.ReleaseMode)
 	ginRouter := httpdelivery.SetupRouter(app, rootLogger)
-
 	// Configure server
 	httpAddr := fmt.Sprintf(":%d", cfg.ApiPort)
 	server := &http.Server{
