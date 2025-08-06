@@ -1,4 +1,4 @@
-package api
+package http
 
 import (
 	"go-clean-arch/internal/usecase"
@@ -6,25 +6,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
-// RegisterRoutes sets up all HTTP routes for the API.
-func RegisterRoutes(r *gin.Engine, app *usecase.Application) {
-	// Health check endpoint
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
-
-	// API v1 routes
-	v1 := r.Group("/api/v1")
-	{
-		// Articles endpoints
-		v1.GET("/articles", listPublishedArticles(app))
-		v1.POST("/articles", createArticle(app))
-		v1.PUT("/articles/:id", updateArticle(app))
-		v1.POST("/articles/:id/publish", publishArticle(app))
-		v1.DELETE("/articles/:id", deleteArticle(app))
-	}
-}
 
 // CreateArticleRequest defines the request body for creating an article
 type CreateArticleRequest struct {
@@ -39,8 +20,15 @@ type UpdateArticleRequest struct {
 	Content string `json:"content" binding:"required"`
 }
 
-// listPublishedArticles returns a handler for listing published articles
-func listPublishedArticles(app *usecase.Application) gin.HandlerFunc {
+// HealthCheck returns a handler for health check endpoint
+func HealthCheck() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	}
+}
+
+// ListPublishedArticles returns a handler for listing published articles
+func ListPublishedArticles(app *usecase.Application) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		publishedOnly := true
 		filter := usecase.BlogFilter{
@@ -57,8 +45,8 @@ func listPublishedArticles(app *usecase.Application) gin.HandlerFunc {
 	}
 }
 
-// createArticle returns a handler for creating a new article
-func createArticle(app *usecase.Application) gin.HandlerFunc {
+// CreateArticle returns a handler for creating a new article
+func CreateArticle(app *usecase.Application) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req CreateArticleRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -76,8 +64,8 @@ func createArticle(app *usecase.Application) gin.HandlerFunc {
 	}
 }
 
-// updateArticle returns a handler for updating an existing article
-func updateArticle(app *usecase.Application) gin.HandlerFunc {
+// UpdateArticle returns a handler for updating an existing article
+func UpdateArticle(app *usecase.Application) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		articleID := c.Param("id")
 		if articleID == "" {
@@ -101,8 +89,8 @@ func updateArticle(app *usecase.Application) gin.HandlerFunc {
 	}
 }
 
-// publishArticle returns a handler for publishing an existing article
-func publishArticle(app *usecase.Application) gin.HandlerFunc {
+// PublishArticle returns a handler for publishing an existing article
+func PublishArticle(app *usecase.Application) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		articleID := c.Param("id")
 		if articleID == "" {
@@ -120,8 +108,8 @@ func publishArticle(app *usecase.Application) gin.HandlerFunc {
 	}
 }
 
-// deleteArticle returns a handler for deleting an existing article
-func deleteArticle(app *usecase.Application) gin.HandlerFunc {
+// DeleteArticle returns a handler for deleting an existing article
+func DeleteArticle(app *usecase.Application) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		articleID := c.Param("id")
 		if articleID == "" {

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"go-clean-arch/internal/adapter"
 	"go-clean-arch/internal/config"
-	"go-clean-arch/internal/delivery/api"
+	httpdelivery "go-clean-arch/internal/delivery/http"
 	"go-clean-arch/internal/platform/logger"
 	"go-clean-arch/internal/usecase"
 	"log/slog"
@@ -62,11 +62,7 @@ func main() {
 
 	// Set up HTTP server
 	gin.SetMode(gin.ReleaseMode)
-	ginRouter := gin.New()
-	ginRouter.Use(gin.Recovery())
-
-	// Register API routes
-	api.RegisterRoutes(ginRouter, app)
+	ginRouter := httpdelivery.SetupRouter(app, rootLogger)
 
 	// Configure server
 	httpAddr := fmt.Sprintf(":%d", cfg.ApiPort)
