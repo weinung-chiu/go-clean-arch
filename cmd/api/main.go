@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 )
 
 var (
@@ -26,13 +25,6 @@ var (
 )
 
 func main() {
-	// Load .env file for local development
-	if os.Getenv("APP_ENV") == "" {
-		if err := godotenv.Load("./configs/.env"); err != nil {
-			slog.Default().Warn("No .env file found, using environment variables")
-		}
-	}
-
 	// Load application configuration
 	cfg, err := config.Load()
 	if err != nil {
@@ -53,7 +45,11 @@ func main() {
 	rootLogger = rootLogger.With("service", AppName, "build", AppBuild)
 
 	// Initialize application dependencies
-	blogRepo := adapter.NewMemoryBlogRepository()
+	blogRepo, err := adapter.NewPostgresBlogRepository(cfg.DatabaseDSN)
+	if err != nil {
+		rootLogger.Error("Failed to create blog repository", "error", err)
+		os.Exit(1)
+	}
 
 	app, err := usecase.NewApplication(usecase.NewApplicationParams{
 		Logger:   rootLogger,

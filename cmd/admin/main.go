@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"go-clean-arch/internal/adapter"
+	"go-clean-arch/internal/config"
 	"go-clean-arch/internal/usecase"
 	"log/slog"
 	"os"
@@ -15,13 +16,25 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Load application configuration
+	cfg, err := config.Load()
+	if err != nil {
+		slog.Default().Error("Failed to load config", "error", err)
+		os.Exit(1)
+	}
+
 	// Setup logger
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
 
 	// Initialize repository and application (same as API server)
-	blogRepo := adapter.NewMemoryBlogRepository()
+	blogRepo, err := adapter.NewPostgresBlogRepository(cfg.DatabaseDSN)
+	if err != nil {
+		logger.Error("Failed to create blog repository", "error", err)
+		os.Exit(1)
+	}
+
 	app, err := usecase.NewApplication(usecase.NewApplicationParams{
 		Logger:   logger,
 		BlogRepo: blogRepo,

@@ -6,4 +6,5 @@ type AppConfig struct {
 	ApiPort   int    `mapstructure:"API_PORT"`
 	JWTSecret string `mapstructure:"JWT_SECRET"`
 	JWTExpiry int    `mapstructure:"JWT_EXPIRY_MINUTES"` // Token expiry in minutes
+	DatabaseDSN string `mapstructure:"DATABASE_DSN"`
 }
