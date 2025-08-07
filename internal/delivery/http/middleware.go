@@ -28,7 +28,7 @@ var traceParentRegex = regexp.MustCompile(`^([0-9a-f]{2})-([0-9a-f]{32})-([0-9a-
 func TraceContext() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var traceID, spanID string
-		
+
 		// Try to extract existing traceparent header
 		traceparent := c.GetHeader(TraceParentHeader)
 		if traceparent != "" {
@@ -38,28 +38,28 @@ func TraceContext() gin.HandlerFunc {
 				spanID = generateSpanID()
 			}
 		}
-		
+
 		// Generate new trace if no valid traceparent found
 		if traceID == "" {
 			traceID = generateTraceID()
 			spanID = generateSpanID()
 		}
-		
+
 		// Create new traceparent header for response
 		newTraceParent := fmt.Sprintf("00-%s-%s-01", traceID, spanID)
-		
+
 		// Add to Gin context
 		c.Set(TraceIDKey, traceID)
 		c.Set(SpanIDKey, spanID)
-		
+
 		// Add to request context for downstream services
 		ctx := context.WithValue(c.Request.Context(), TraceIDKey, traceID)
 		ctx = context.WithValue(ctx, SpanIDKey, spanID)
 		c.Request = c.Request.WithContext(ctx)
-		
+
 		// Add to response headers
 		c.Header(TraceParentHeader, newTraceParent)
-		
+
 		c.Next()
 	}
 }
@@ -69,19 +69,19 @@ func RequestLogger(logger *slog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Record start time
 		start := time.Now()
-		
+
 		// Process request
 		c.Next()
-		
+
 		// Extract trace ID from context
 		traceID, _ := c.Get(TraceIDKey)
 		if traceID == nil {
 			traceID = "unknown"
 		}
-		
+
 		// Calculate duration
 		duration := time.Since(start)
-		
+
 		// Log structured request details
 		logger.InfoContext(c.Request.Context(), "HTTP request completed",
 			"trace_id", traceID,

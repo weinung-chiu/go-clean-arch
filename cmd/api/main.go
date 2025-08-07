@@ -41,16 +41,21 @@ func main() {
 	rootLogger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
 	rootLogger = rootLogger.With("service", AppName, "build", AppBuild)
 
-	// Initialize application dependencies
+	// Initialize repositories
 	blogRepo, err := adapter.NewPostgresBlogRepository(cfg.DatabaseDSN)
 	if err != nil {
 		rootLogger.Error("Failed to create blog repository", "error", err)
 		os.Exit(1)
 	}
+	userRepo := adapter.NewMemoryUserRepository()
+
+	// Initialize auth service
+	authService := adapter.NewJWTAuthService(cfg, userRepo)
 
 	app, err := usecase.NewApplication(usecase.NewApplicationParams{
-		Logger:   rootLogger,
-		BlogRepo: blogRepo,
+		Logger:      rootLogger,
+		BlogRepo:    blogRepo,
+		AuthService: authService,
 	})
 	if err != nil {
 		rootLogger.Error("Failed to create application", "error", err)

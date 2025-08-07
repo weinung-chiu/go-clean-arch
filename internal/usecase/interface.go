@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"go-clean-arch/internal/entity"
+	"time"
 )
 
 // Repository interfaces define contracts for data access in the use case layer.
@@ -25,4 +26,26 @@ type BlogRepository interface {
 	Update(ctx context.Context, article *entity.Article) error
 	Delete(ctx context.Context, id string) error
 	List(ctx context.Context, filter BlogFilter) ([]*entity.Article, error)
+}
+
+// AuthResult represents the result of successful authentication
+type AuthResult struct {
+	Token     string
+	User      *entity.User
+	ExpiresAt time.Time
+}
+
+// UserRepository defines the contract for user data access operations
+type UserRepository interface {
+	Create(ctx context.Context, user *entity.User) error
+	GetByUsername(ctx context.Context, username string) (*entity.User, error)
+	GetByID(ctx context.Context, id string) (*entity.User, error)
+	Update(ctx context.Context, user *entity.User) error
+}
+
+// AuthService defines the contract for authentication operations
+type AuthService interface {
+	LoginWithPassword(username, password string) (*AuthResult, error)
+	RegisterWithPassword(username, password string) (*AuthResult, error)
+	ValidateToken(token string) (*entity.User, error)
 }

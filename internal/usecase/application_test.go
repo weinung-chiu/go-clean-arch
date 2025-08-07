@@ -71,7 +71,7 @@ func (m *MockBlogRepository) List(ctx context.Context, filter BlogFilter) ([]*en
 	if m.listFn != nil {
 		return m.listFn(ctx, filter)
 	}
-	
+
 	var articles []*entity.Article
 	for _, article := range m.articles {
 		if m.matchesFilter(article, filter) {
@@ -102,15 +102,39 @@ func (m *MockBlogRepository) matchesFilter(article *entity.Article, filter BlogF
 
 func setupTestApplication() (*Application, *MockBlogRepository) {
 	mockRepo := NewMockBlogRepository()
+	mockAuthService := &MockAuthService{}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	
+
 	app, _ := NewApplication(NewApplicationParams{
-		Logger:   logger,
-		BlogRepo: mockRepo,
+		Logger:      logger,
+		BlogRepo:    mockRepo,
+		AuthService: mockAuthService,
 	})
-	
+
 	return app, mockRepo
 }
+
+// Mock implementations for testing
+type MockUserRepository struct{}
+
+func (m *MockUserRepository) Create(ctx context.Context, user *entity.User) error { return nil }
+func (m *MockUserRepository) GetByUsername(ctx context.Context, username string) (*entity.User, error) {
+	return nil, nil
+}
+func (m *MockUserRepository) GetByID(ctx context.Context, id string) (*entity.User, error) {
+	return nil, nil
+}
+func (m *MockUserRepository) Update(ctx context.Context, user *entity.User) error { return nil }
+
+type MockAuthService struct{}
+
+func (m *MockAuthService) LoginWithPassword(username, password string) (*AuthResult, error) {
+	return nil, nil
+}
+func (m *MockAuthService) RegisterWithPassword(username, password string) (*AuthResult, error) {
+	return nil, nil
+}
+func (m *MockAuthService) ValidateToken(token string) (*entity.User, error) { return nil, nil }
 
 func TestNewApplication(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
@@ -118,8 +142,9 @@ func TestNewApplication(t *testing.T) {
 
 	t.Run("successful creation", func(t *testing.T) {
 		app, err := NewApplication(NewApplicationParams{
-			Logger:   logger,
-			BlogRepo: mockRepo,
+			Logger:      logger,
+			BlogRepo:    mockRepo,
+			AuthService: &MockAuthService{},
 		})
 
 		if err != nil {
@@ -132,12 +157,25 @@ func TestNewApplication(t *testing.T) {
 
 	t.Run("missing blog repository", func(t *testing.T) {
 		_, err := NewApplication(NewApplicationParams{
-			Logger:   logger,
-			BlogRepo: nil,
+			Logger:      logger,
+			BlogRepo:    nil,
+			AuthService: &MockAuthService{},
 		})
 
 		if err == nil {
 			t.Error("NewApplication() error = nil, want error for missing BlogRepo")
+		}
+	})
+
+	t.Run("missing auth service", func(t *testing.T) {
+		_, err := NewApplication(NewApplicationParams{
+			Logger:      logger,
+			BlogRepo:    mockRepo,
+			AuthService: nil,
+		})
+
+		if err == nil {
+			t.Error("NewApplication() error = nil, want error for missing AuthService")
 		}
 	})
 }
@@ -455,6 +493,6 @@ func TestApplication_ListArticles(t *testing.T) {
 }
 
 // Helper functions
-func stringPtr(s string) *string { return &s }
-func boolPtr(b bool) *bool       { return &b }
+func stringPtr(s string) *string     { return &s }
+func boolPtr(b bool) *bool           { return &b }
 func timePtr(t time.Time) *time.Time { return &t }

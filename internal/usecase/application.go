@@ -15,14 +15,16 @@ import (
 // It follows Clean Architecture principles by depending only on
 // interfaces and entities, not on external frameworks or infrastructure.
 type Application struct {
-	logger   *slog.Logger
-	blogRepo BlogRepository
+	logger      *slog.Logger
+	blogRepo    BlogRepository
+	AuthService AuthService
 }
 
 // NewApplicationParams holds the dependencies needed to create a new Application.
 type NewApplicationParams struct {
-	Logger   *slog.Logger
-	BlogRepo BlogRepository
+	Logger      *slog.Logger
+	BlogRepo    BlogRepository
+	AuthService AuthService
 }
 
 // NewApplication creates a new Application instance with the provided dependencies.
@@ -31,10 +33,14 @@ func NewApplication(params NewApplicationParams) (*Application, error) {
 	if params.BlogRepo == nil {
 		return nil, fmt.Errorf("BlogRepo is required")
 	}
+	if params.AuthService == nil {
+		return nil, fmt.Errorf("AuthService is required")
+	}
 
 	return &Application{
-		logger:   params.Logger.With("component", "application"),
-		blogRepo: params.BlogRepo,
+		logger:      params.Logger.With("component", "application"),
+		blogRepo:    params.BlogRepo,
+		AuthService: params.AuthService,
 	}, nil
 }
 

@@ -8,8 +8,12 @@ import "time"
 // and be independent of frameworks, databases, or external concerns.
 
 type User struct {
-	ID   string
-	Name string
+	ID           string
+	Name         string
+	Username     string
+	PasswordHash string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 type Article struct {
