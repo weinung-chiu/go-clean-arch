@@ -207,6 +207,20 @@ Replace components while keeping architecture intact:
 - [Clean Architecture by Uncle Bob](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
 - [golang-standards/project-layout](https://github.com/golang-standards/project-layout)
 
+## User Stories
+
+**As a guest**, I can view all published articles (`GET /api/v1/articles`), so that I can read the latest content.
+
+**As a user**, I can create draft articles (`POST /api/v1/articles`), so that I can prepare content before publishing.
+
+**As a user**, I can update my draft articles (`PUT /api/v1/articles/{id}`), so that I can refine content before it goes live.
+
+**As a user**, I can publish my draft articles (`POST /api/v1/articles/{id}/publish`), so that guests can read my content.
+
+**As a user**, I can delete published articles (`DELETE /api/v1/articles/{id}`), so that I can remove outdated or incorrect content.
+
+**As an admin**, I can manage articles via CLI commands (`go run cmd/admin/main.go [publish|delete|list] <args>`), so that I can perform bulk operations and administrative tasks efficiently.
+
 ---
 
 *Clean Architecture isn't just theory—it's a practical approach to building maintainable Go applications. This project shows how proper separation of concerns makes code easy to understand, test, and evolve.*
