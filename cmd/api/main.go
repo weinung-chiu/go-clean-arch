@@ -38,7 +38,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	rootLogger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
+	rootLogger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
 	rootLogger = rootLogger.With("service", AppName, "build", AppBuild)
 
 	// Initialize repositories
