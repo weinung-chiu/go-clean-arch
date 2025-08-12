@@ -289,7 +289,7 @@ func TestApplication_UpdateArticle(t *testing.T) {
 	mockRepo.articles["test-id"] = testArticle
 
 	t.Run("successful update", func(t *testing.T) {
-		updatedArticle, err := app.UpdateArticle(ctx, "test-id", "Updated Title", "Updated content")
+		updatedArticle, err := app.UpdateArticle(ctx, "test-id", "Updated Title", "Updated content", "test-author")
 
 		if err != nil {
 			t.Errorf("UpdateArticle() error = %v, want nil", err)
@@ -307,23 +307,35 @@ func TestApplication_UpdateArticle(t *testing.T) {
 
 	t.Run("missing parameters", func(t *testing.T) {
 		tests := []struct {
-			name    string
-			id      string
-			title   string
-			content string
+			name     string
+			id       string
+			title    string
+			content  string
+			authorID string
 		}{
-			{"missing ID", "", "Title", "Content"},
-			{"missing title", "test-id", "", "Content"},
-			{"missing content", "test-id", "Title", ""},
+			{"missing ID", "", "Title", "Content", "test-author"},
+			{"missing title", "test-id", "", "Content", "test-author"},
+			{"missing content", "test-id", "Title", "", "test-author"},
+			{"missing authorID", "test-id", "Title", "Content", ""},
 		}
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				_, err := app.UpdateArticle(ctx, tt.id, tt.title, tt.content)
+				_, err := app.UpdateArticle(ctx, tt.id, tt.title, tt.content, tt.authorID)
 				if err == nil {
 					t.Errorf("UpdateArticle() error = nil, want error for %s", tt.name)
 				}
 			})
+		}
+	})
+
+	t.Run("unauthorized access", func(t *testing.T) {
+		_, err := app.UpdateArticle(ctx, "test-id", "Updated Title", "Updated content", "different-author")
+		if err == nil {
+			t.Error("UpdateArticle() error = nil, want authorization error")
+		}
+		if err.Error() != "unauthorized: user can only update their own articles" {
+			t.Errorf("UpdateArticle() error = %v, want authorization error", err)
 		}
 	})
 }
@@ -344,7 +356,7 @@ func TestApplication_PublishArticle(t *testing.T) {
 	mockRepo.articles["test-id"] = testArticle
 
 	t.Run("successful publish", func(t *testing.T) {
-		publishedArticle, err := app.PublishArticle(ctx, "test-id")
+		publishedArticle, err := app.PublishArticle(ctx, "test-id", "test-author")
 
 		if err != nil {
 			t.Errorf("PublishArticle() error = %v, want nil", err)
@@ -358,9 +370,19 @@ func TestApplication_PublishArticle(t *testing.T) {
 	})
 
 	t.Run("missing ID", func(t *testing.T) {
-		_, err := app.PublishArticle(ctx, "")
+		_, err := app.PublishArticle(ctx, "", "test-author")
 		if err == nil {
 			t.Error("PublishArticle() error = nil, want error for missing ID")
+		}
+	})
+
+	t.Run("unauthorized access", func(t *testing.T) {
+		_, err := app.PublishArticle(ctx, "test-id", "different-author")
+		if err == nil {
+			t.Error("PublishArticle() error = nil, want authorization error")
+		}
+		if err.Error() != "unauthorized: user can only publish their own articles" {
+			t.Errorf("PublishArticle() error = %v, want authorization error", err)
 		}
 	})
 }
@@ -418,7 +440,7 @@ func TestApplication_DeleteArticle(t *testing.T) {
 	mockRepo.articles["test-id"] = testArticle
 
 	t.Run("successful delete", func(t *testing.T) {
-		err := app.DeleteArticle(ctx, "test-id")
+		err := app.DeleteArticle(ctx, "test-id", "test-author")
 
 		if err != nil {
 			t.Errorf("DeleteArticle() error = %v, want nil", err)
@@ -432,9 +454,28 @@ func TestApplication_DeleteArticle(t *testing.T) {
 	})
 
 	t.Run("missing ID", func(t *testing.T) {
-		err := app.DeleteArticle(ctx, "")
+		err := app.DeleteArticle(ctx, "", "test-author")
 		if err == nil {
 			t.Error("DeleteArticle() error = nil, want error for missing ID")
+		}
+	})
+
+	t.Run("unauthorized access", func(t *testing.T) {
+		// Create another test article for authorization test
+		authTestArticle := &entity.Article{
+			ID:       "auth-test-id",
+			Title:    "Auth Test Article",
+			Content:  "Auth test content",
+			AuthorID: "test-author",
+		}
+		mockRepo.articles["auth-test-id"] = authTestArticle
+
+		err := app.DeleteArticle(ctx, "auth-test-id", "different-author")
+		if err == nil {
+			t.Error("DeleteArticle() error = nil, want authorization error")
+		}
+		if err.Error() != "unauthorized: user can only delete their own articles" {
+			t.Errorf("DeleteArticle() error = %v, want authorization error", err)
 		}
 	})
 }

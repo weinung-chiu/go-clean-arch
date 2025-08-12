@@ -105,8 +105,8 @@ func (a *Application) ListArticles(ctx context.Context, filter BlogFilter) ([]*e
 }
 
 // UpdateArticle updates an existing blog article's content
-func (a *Application) UpdateArticle(ctx context.Context, id, title, content string) (*entity.Article, error) {
-	a.logger.DebugContext(ctx, "Updating article", "id", id, "title", title)
+func (a *Application) UpdateArticle(ctx context.Context, id, title, content, authorID string) (*entity.Article, error) {
+	a.logger.DebugContext(ctx, "Updating article", "id", id, "title", title, "authorID", authorID)
 
 	if id == "" {
 		return nil, fmt.Errorf("id is required")
@@ -117,10 +117,17 @@ func (a *Application) UpdateArticle(ctx context.Context, id, title, content stri
 	if content == "" {
 		return nil, fmt.Errorf("content is required")
 	}
+	if authorID == "" {
+		return nil, fmt.Errorf("authorID is required")
+	}
 
 	article, err := a.blogRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get article for update: %w", err)
+	}
+
+	if article.AuthorID != authorID {
+		return nil, fmt.Errorf("unauthorized: user can only update their own articles")
 	}
 
 	article.Title = title
@@ -135,28 +142,35 @@ func (a *Application) UpdateArticle(ctx context.Context, id, title, content stri
 }
 
 // PublishArticle publishes a blog article immediately
-func (a *Application) PublishArticle(ctx context.Context, id string) (*entity.Article, error) {
-	a.logger.DebugContext(ctx, "Publishing article", "id", id)
+func (a *Application) PublishArticle(ctx context.Context, id, authorID string) (*entity.Article, error) {
+	a.logger.DebugContext(ctx, "Publishing article", "id", id, "authorID", authorID)
 
-	return a.scheduleArticle(ctx, id, time.Now())
+	return a.scheduleArticle(ctx, id, authorID, time.Now())
 }
 
 // ScheduleArticle schedules a blog article for future publication
-func (a *Application) ScheduleArticle(ctx context.Context, id string, publishAt time.Time) (*entity.Article, error) {
-	a.logger.DebugContext(ctx, "Scheduling article", "id", id, "publishAt", publishAt)
+func (a *Application) ScheduleArticle(ctx context.Context, id, authorID string, publishAt time.Time) (*entity.Article, error) {
+	a.logger.DebugContext(ctx, "Scheduling article", "id", id, "authorID", authorID, "publishAt", publishAt)
 
-	return a.scheduleArticle(ctx, id, publishAt)
+	return a.scheduleArticle(ctx, id, authorID, publishAt)
 }
 
 // scheduleArticle internal helper for publishing/scheduling
-func (a *Application) scheduleArticle(ctx context.Context, id string, publishAt time.Time) (*entity.Article, error) {
+func (a *Application) scheduleArticle(ctx context.Context, id, authorID string, publishAt time.Time) (*entity.Article, error) {
 	if id == "" {
 		return nil, fmt.Errorf("id is required")
+	}
+	if authorID == "" {
+		return nil, fmt.Errorf("authorID is required")
 	}
 
 	article, err := a.blogRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get article for publishing: %w", err)
+	}
+
+	if article.AuthorID != authorID {
+		return nil, fmt.Errorf("unauthorized: user can only publish their own articles")
 	}
 
 	article.PublishedAt = &publishAt
@@ -193,8 +207,59 @@ func (a *Application) UnpublishArticle(ctx context.Context, id string) (*entity.
 }
 
 // DeleteArticle deletes a blog article
-func (a *Application) DeleteArticle(ctx context.Context, id string) error {
-	a.logger.DebugContext(ctx, "Deleting article", "id", id)
+func (a *Application) DeleteArticle(ctx context.Context, id, authorID string) error {
+	a.logger.DebugContext(ctx, "Deleting article", "id", id, "authorID", authorID)
+
+	if id == "" {
+		return fmt.Errorf("id is required")
+	}
+	if authorID == "" {
+		return fmt.Errorf("authorID is required")
+	}
+
+	article, err := a.blogRepo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to get article for deletion: %w", err)
+	}
+
+	if article.AuthorID != authorID {
+		return fmt.Errorf("unauthorized: user can only delete their own articles")
+	}
+
+	if err := a.blogRepo.Delete(ctx, id); err != nil {
+		return fmt.Errorf("failed to delete article: %w", err)
+	}
+
+	return nil
+}
+
+// AdminPublishArticle publishes a blog article immediately (admin operation, bypasses authorization)
+func (a *Application) AdminPublishArticle(ctx context.Context, id string) (*entity.Article, error) {
+	a.logger.DebugContext(ctx, "Admin publishing article", "id", id)
+
+	if id == "" {
+		return nil, fmt.Errorf("id is required")
+	}
+
+	article, err := a.blogRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get article for publishing: %w", err)
+	}
+
+	now := time.Now()
+	article.PublishedAt = &now
+	article.UpdatedAt = time.Now()
+
+	if err := a.blogRepo.Update(ctx, article); err != nil {
+		return nil, fmt.Errorf("failed to publish article: %w", err)
+	}
+
+	return article, nil
+}
+
+// AdminDeleteArticle deletes a blog article (admin operation, bypasses authorization)
+func (a *Application) AdminDeleteArticle(ctx context.Context, id string) error {
+	a.logger.DebugContext(ctx, "Admin deleting article", "id", id)
 
 	if id == "" {
 		return fmt.Errorf("id is required")

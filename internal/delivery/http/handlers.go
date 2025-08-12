@@ -1,6 +1,7 @@
 package http
 
 import (
+	"go-clean-arch/internal/entity"
 	"go-clean-arch/internal/usecase"
 	"net/http"
 
@@ -9,9 +10,8 @@ import (
 
 // CreateArticleRequest defines the request body for creating an article
 type CreateArticleRequest struct {
-	Title    string `json:"title" binding:"required"`
-	Content  string `json:"content" binding:"required"`
-	AuthorID string `json:"author_id" binding:"required"`
+	Title   string `json:"title" binding:"required"`
+	Content string `json:"content" binding:"required"`
 }
 
 // UpdateArticleRequest defines the request body for updating an article
@@ -54,7 +54,19 @@ func CreateArticle(app *usecase.Application) gin.HandlerFunc {
 			return
 		}
 
-		article, err := app.CreateArticle(c.Request.Context(), req.Title, req.Content, req.AuthorID)
+		user, exists := c.Get("user")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+			return
+		}
+
+		authedUser, ok := user.(*entity.User)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user context"})
+			return
+		}
+		authorID := authedUser.ID
+		article, err := app.CreateArticle(c.Request.Context(), req.Title, req.Content, authorID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create article"})
 			return
@@ -79,8 +91,24 @@ func UpdateArticle(app *usecase.Application) gin.HandlerFunc {
 			return
 		}
 
-		article, err := app.UpdateArticle(c.Request.Context(), articleID, req.Title, req.Content)
+		user, exists := c.Get("user")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+			return
+		}
+
+		authedUser, ok := user.(*entity.User)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user context"})
+			return
+		}
+		authorID := authedUser.ID
+		article, err := app.UpdateArticle(c.Request.Context(), articleID, req.Title, req.Content, authorID)
 		if err != nil {
+			if err.Error() == "unauthorized: user can only update their own articles" {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden: you can only update your own articles"})
+				return
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update article"})
 			return
 		}
@@ -98,8 +126,24 @@ func PublishArticle(app *usecase.Application) gin.HandlerFunc {
 			return
 		}
 
-		article, err := app.PublishArticle(c.Request.Context(), articleID)
+		user, exists := c.Get("user")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+			return
+		}
+
+		authedUser, ok := user.(*entity.User)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user context"})
+			return
+		}
+		authorID := authedUser.ID
+		article, err := app.PublishArticle(c.Request.Context(), articleID, authorID)
 		if err != nil {
+			if err.Error() == "unauthorized: user can only publish their own articles" {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden: you can only publish your own articles"})
+				return
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to publish article"})
 			return
 		}
@@ -117,8 +161,24 @@ func DeleteArticle(app *usecase.Application) gin.HandlerFunc {
 			return
 		}
 
-		err := app.DeleteArticle(c.Request.Context(), articleID)
+		user, exists := c.Get("user")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+			return
+		}
+
+		authedUser, ok := user.(*entity.User)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user context"})
+			return
+		}
+		authorID := authedUser.ID
+		err := app.DeleteArticle(c.Request.Context(), articleID, authorID)
 		if err != nil {
+			if err.Error() == "unauthorized: user can only delete their own articles" {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden: you can only delete your own articles"})
+				return
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete article"})
 			return
 		}

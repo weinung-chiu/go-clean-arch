@@ -69,7 +69,7 @@ func handlePublish(ctx context.Context, app *usecase.Application, args []string)
 	}
 
 	articleID := args[0]
-	article, err := app.PublishArticle(ctx, articleID)
+	article, err := app.AdminPublishArticle(ctx, articleID)
 	if err != nil {
 		fmt.Printf("Error: Failed to publish article %s: %v\n", articleID, err)
 		os.Exit(1)
@@ -88,7 +88,7 @@ func handleDelete(ctx context.Context, app *usecase.Application, args []string) 
 	}
 
 	articleID := args[0]
-	err := app.DeleteArticle(ctx, articleID)
+	err := app.AdminDeleteArticle(ctx, articleID)
 	if err != nil {
 		fmt.Printf("Error: Failed to delete article %s: %v\n", articleID, err)
 		os.Exit(1)
